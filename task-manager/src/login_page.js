@@ -1,20 +1,22 @@
 import React, { useState } from 'react';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
+import { useNavigate } from 'react-router-dom';
 
 const ClientID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
-function App() {
+function LoginPage({ setUser }) {
   const [error, setError] = useState('');
-  const [user, setUser] = useState(null);
+  const navigate = useNavigate(); // Enables navigation
 
   const handleSuccess = (credentialResponse) => {
     console.log('Login Success:', credentialResponse);
-    
+
     try {
       const decoded = jwtDecode(credentialResponse.credential);
       console.log('Decoded User Info:', decoded);
-      setUser(decoded);
+      setUser(decoded); // Store user data
+      navigate('/dashboard'); // Redirect to dashboard
     } catch (error) {
       console.error('Error decoding credential:', error);
       setError('Failed to process login information.');
@@ -33,29 +35,12 @@ function App() {
     <div>
       <h1>Task Manager</h1>
       {error && <div style={{ color: 'red' }}>{error}</div>}
-      
-      {user ? (
-        <div>
-          <h2>Welcome, {user.name}!</h2>
-          <p>Email: {user.email}</p>
-          {user.picture && <img 
-            src={user.picture} 
-            alt="Profile" 
-            style={{ width: 100, height: 100, borderRadius: '50%' }}
-          />}
-        </div>
-      ) : (
-        <div>
-          <GoogleOAuthProvider clientId={ClientID}>
-            <GoogleLogin
-              onSuccess={handleSuccess}
-              onError={handleError}
-            />
-          </GoogleOAuthProvider>
-        </div>
-      )}
+
+      <GoogleOAuthProvider clientId={ClientID}>
+        <GoogleLogin onSuccess={handleSuccess} onError={handleError} />
+      </GoogleOAuthProvider>
     </div>
   );
 }
 
-export default App;
+export default LoginPage;
