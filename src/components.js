@@ -35,36 +35,63 @@ import './components.css';
      );
    }
    
-   /* ========================================
-      🟢 BOX COMPONENT
-      ======================================== */
-   export function Box({ id, onDelete }) {
-     const [text, setText] = useState("");
-     const [showConfirmation, setShowConfirmation] = useState(false);
-   
-     return (
-       <div className="box-container">
-         <textarea
-           className="box-textarea"
-           value={text}
-           onChange={(e) => {
-             setText(e.target.value);
-             e.target.style.height = "auto";
-             e.target.style.height = e.target.scrollHeight + "px";
-           }}
-         />
-         <button className="delete-button" onClick={() => setShowConfirmation(true)}>
-           -
-         </button>
-         {showConfirmation && (
-           <ConfirmationPopup
-             onConfirm={() => onDelete(id)}
-             onCancel={() => setShowConfirmation(false)}
-           />
-         )}
-       </div>
-     );
-   }
+/* ========================================
+   🟢 BOX COMPONENT
+   ======================================== */
+   export function Box({ id, onDelete, initialContent = "" }) {
+    const [text, setText] = useState(initialContent);
+    const [showConfirmation, setShowConfirmation] = useState(false);
+  
+    // This function calls our PUT endpoint to update the content in the database
+    const handleSave = () => {
+      fetch(`http://localhost:4000/api/boxes/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: text }),
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            // You could setText(data.box.content) if you want to confirm the new content
+            console.log('Box updated:', data.box);
+          } else {
+            console.error('Failed to update box.');
+          }
+        })
+        .catch(err => console.error('Error updating box:', err));
+    };
+  
+    return (
+      <div className="box-container">
+        <textarea
+          className="box-textarea"
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            e.target.style.height = "auto";
+            e.target.style.height = e.target.scrollHeight + "px";
+          }}
+        />
+        <button 
+          className="delete-button" 
+          onClick={() => setShowConfirmation(true)}
+        >
+          -
+        </button>
+  
+        {showConfirmation && (
+          // The popup to confirm deletion
+          <ConfirmationPopup
+            onConfirm={() => onDelete(id)}
+            onCancel={() => setShowConfirmation(false)}
+          />
+        )}
+  
+        {/* New button to save text */}
+        <button onClick={handleSave}>Save</button>
+      </div>
+    );
+  }
 
 /* ========================================
    🟢 PROFILE BUTTON COMPONENT
