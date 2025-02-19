@@ -41,7 +41,7 @@ function DashboardPage({ user, setUser }) {
 
   // Delete a box in the database
   const deleteBox = (boxId) => {
-    fetch(`http://localhost:4000/api/boxes/${boxId}`, {
+    fetch(`http://do-it-dashbaord-backend-env.eba-4qbyqf4f.us-east-2.elasticbeanstalk.com/api/boxes/${boxId}`, {
       method: 'DELETE',
     })
       .then(response => response.json())
