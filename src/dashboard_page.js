@@ -9,7 +9,7 @@ function DashboardPage({ user, setUser }) {
   // Fetch existing boxes from the backend for this user
   useEffect(() => {
     if (user) {
-      fetch(`http://localhost:4000/api/boxes?userId=${user.sub || user.email}`)
+      fetch(`http://do-it-dashbaord-backend-env.eba-4qbyqf4f.us-east-2.elasticbeanstalk.com/api/boxes?userId=${user.sub || user.email}`)
         .then(response => response.json())
         .then(data => {
           if (data.success) {
@@ -22,7 +22,7 @@ function DashboardPage({ user, setUser }) {
 
   // Create a new box in the database (empty content)
   const addBox = () => {
-    fetch('http://localhost:4000/api/boxes', {
+    fetch('http://do-it-dashbaord-backend-env.eba-4qbyqf4f.us-east-2.elasticbeanstalk.com/api/boxes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
