@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Box, ProfileButton } from "./components";
 import { useNavigate } from "react-router-dom";
 
+// Base URL for all API calls
+const API_BASE_URL = 'https://do-it-dashbaord-backend-env.eba-4qbyqf4f.us-east-2.elasticbeanstalk.com';
+
 function DashboardPage({ user, setUser }) {
   const [boxes, setBoxes] = useState([]);
   const navigate = useNavigate();
@@ -9,7 +12,7 @@ function DashboardPage({ user, setUser }) {
   // Fetch existing boxes from the backend for this user
   useEffect(() => {
     if (user) {
-      fetch(`http://do-it-dashbaord-backend-env.eba-4qbyqf4f.us-east-2.elasticbeanstalk.com/api/boxes?userId=${user.sub || user.email}`)
+      fetch(`${API_BASE_URL}/api/boxes?userId=${user.sub || user.email}`)
         .then(response => response.json())
         .then(data => {
           if (data.success) {
@@ -22,7 +25,7 @@ function DashboardPage({ user, setUser }) {
 
   // Create a new box in the database (empty content)
   const addBox = () => {
-    fetch('http://do-it-dashbaord-backend-env.eba-4qbyqf4f.us-east-2.elasticbeanstalk.com/api/boxes', {
+    fetch(`${API_BASE_URL}/api/boxes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -41,7 +44,7 @@ function DashboardPage({ user, setUser }) {
 
   // Delete a box in the database
   const deleteBox = (boxId) => {
-    fetch(`http://do-it-dashbaord-backend-env.eba-4qbyqf4f.us-east-2.elasticbeanstalk.com/api/boxes/${boxId}`, {
+    fetch(`${API_BASE_URL}/api/boxes/${boxId}`, {
       method: 'DELETE',
     })
       .then(response => response.json())
@@ -73,7 +76,7 @@ function DashboardPage({ user, setUser }) {
           key={box.id}
           id={box.id}
           onDelete={deleteBox}
-          initialContent={box.content} // Pass the existing DB content
+          initialContent={box.content}
         />
       ))}
     </div>
