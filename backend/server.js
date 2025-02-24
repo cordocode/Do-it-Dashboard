@@ -7,16 +7,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Find this section in your server.js
 const { Pool } = require('pg');
 
-// Create a new pool using .env variables
+// Replace the existing pool creation with these two lines
+const isProduction = process.env.NODE_ENV === 'production';
 const pool = new Pool({
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
   host: process.env.DB_HOST,
   database: process.env.DB_NAME,
   port: process.env.DB_PORT,
-  ssl: { rejectUnauthorized: false }
+  ssl: isProduction ? { rejectUnauthorized: false } : false
 });
 
 // 1) Test endpoint

@@ -4,7 +4,7 @@ import { jwtDecode } from "jwt-decode";
 import './components.css';
 
 // Base URL for all API calls - same as dashboard
-const API_BASE_URL = 'https://backend.formybuddy.com'
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://backend.formybuddy.com'
 
 /* ========================================
    🟢 GOOGLE LOGIN BUTTON COMPONENT
