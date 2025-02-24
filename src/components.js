@@ -39,56 +39,102 @@ export function ConfirmationPopup({ onConfirm, onCancel }) {
 }
 
 /* ========================================
+   🟢 STATUS INDICATOR COMPONENT
+   ======================================== */
+function StatusIndicator({ status }) {
+  const statusClass = {
+    unsaved: 'status-unsaved',
+    modified: 'status-modified',
+    saved: 'status-saved'
+  }[status];
+
+  return <div className={`status-indicator ${statusClass}`} />;
+}
+
+/* ========================================
    🟢 BOX COMPONENT
    ======================================== */
-export function Box({ id, onDelete, initialContent = "" }) {
+export function Box({ id, user, onDelete, onSave, initialContent = "" }) {
   const [text, setText] = useState(initialContent);
+  const [savedText, setSavedText] = useState(initialContent);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  // Updated to use the correct API endpoint
+  // Determine status based on current state
+  const getStatus = () => {
+    if (savedText === "") return "unsaved";
+    if (text === savedText) return "saved";
+    return "modified";
+  };
+
+  const handleTextChange = (e) => {
+    setText(e.target.value);
+    e.target.style.height = "auto";
+    e.target.style.height = e.target.scrollHeight + "px";
+  };
+
   const handleSave = () => {
-    fetch(`${API_BASE_URL}/api/boxes/${id}`, {
-      method: 'PUT',
+    const url = id 
+      ? `${API_BASE_URL}/api/boxes/${id}` 
+      : `${API_BASE_URL}/api/boxes`;
+    const method = id ? 'PUT' : 'POST';
+    const userId = user?.sub || user?.email;
+
+    fetch(url, {
+      method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: text }),
+      body: JSON.stringify({
+        userId,
+        content: text
+      }),
     })
       .then(response => response.json())
       .then(data => {
         if (data.success) {
-          console.log('Box updated:', data.box);
+          setSavedText(text); // Update saved text reference
+          onSave(id, data.box);
         } else {
-          console.error('Failed to update box.');
+          console.error('Failed to save box.');
         }
       })
-      .catch(err => console.error('Error updating box:', err));
+      .catch(err => console.error('Error saving box:', err));
+  };
+
+  const handleDelete = () => {
+    // Always call onDelete with the current box id (or null)
+    onDelete(id);
+    setShowConfirmation(false);
   };
 
   return (
     <div className="box-container">
-      <textarea
-        className="box-textarea"
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          e.target.style.height = "auto";
-          e.target.style.height = e.target.scrollHeight + "px";
-        }}
-      />
-      <button 
-        className="delete-button" 
-        onClick={() => setShowConfirmation(true)}
-      >
-        -
-      </button>
-
-      {showConfirmation && (
-        <ConfirmationPopup
-          onConfirm={() => onDelete(id)}
-          onCancel={() => setShowConfirmation(false)}
+      <div className="textarea-container">
+        <StatusIndicator status={getStatus()} />
+        <textarea
+          className="box-textarea"
+          value={text}
+          onChange={handleTextChange}
         />
-      )}
-
-      <button onClick={handleSave}>Save</button>
+      </div>
+      <div className="box-controls">
+        <button 
+          className={`save-button ${getStatus() === 'saved' ? 'saved' : ''}`} 
+          onClick={handleSave}
+        >
+          Save
+        </button>
+        <button 
+          className="delete-button" 
+          onClick={() => setShowConfirmation(true)}
+        >
+          delete
+        </button>
+        {showConfirmation && (
+          <ConfirmationPopup
+            onConfirm={handleDelete}
+            onCancel={() => setShowConfirmation(false)}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -111,7 +157,19 @@ export function ProfileButton({ onLogout }) {
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Profile"
       >
-        <span className="profile-icon">👤</span>
+        <svg 
+          width="16" 
+          height="16" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="currentColor" 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+        >
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
       </button>
       {isOpen && (
         <div className="profile-dropdown">

@@ -14,6 +14,9 @@
      ======================================== */
   .google-login-container {
     margin: 20px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
   
   .google-login-error {
@@ -32,13 +35,15 @@
     position: absolute;
     top: 100%;
     right: 0;
-    margin-top: 8px;
+    margin-top: 4px;
     padding: 8px;
     background: white;
     border: 1px solid var(--text-black);
     border-radius: var(--border-radius);
     display: flex;
-    gap: 8px;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
   }
   
   .confirmation-button {
@@ -63,14 +68,24 @@
      ======================================== */
   .box-container {
     position: relative;
+    width: 100%;
     max-width: 600px;
     margin: 20px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin: 1rem 0;
+  }
+
+  .textarea-container {
+    position: relative;
+    width: 100%;
   }
   
   .box-textarea {
     width: 100%;
     min-height: 48px;
-    padding: 12px 16px;
+    padding: 12px 16px 12px 12px;
     border: 1px solid var(--text-black);
     border-radius: var(--border-radius);
     background: transparent;
@@ -79,6 +94,7 @@
     line-height: 1.5;
     resize: none;
     transition: border-color var(--transition-speed);
+    padding-left: 12px; /* Make room for status indicator */
   }
   
   .box-textarea:focus {
@@ -87,24 +103,65 @@
   }
   
   .delete-button {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    width: 24px;
-    height: 24px;
+    padding: 6px 12px;
     border: 1px solid var(--text-black);
-    border-radius: 50%;
+    border-radius: var(--border-radius);
     background: transparent;
     color: var(--text-black);
     font-size: 16px;
     line-height: 1;
     cursor: pointer;
     transition: all var(--transition-speed);
+    margin-left: auto;
   }
   
   .delete-button:hover {
     background: var(--text-black);
     color: var(--background-cream);
+  }
+
+  .box-controls {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 8px;
+    position: relative;
+  }
+
+  .save-button {
+    padding: 6px 12px;
+    border: 1px solid var(--text-black);
+    border-radius: var(--border-radius);
+    background: transparent;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+  }
+
+  .addbox-button {
+    align-self: flex-start;
+  }
+
+  .status-indicator {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    transition: background-color 0.3s ease;
+    border-top-left-radius: var(--border-radius);
+    border-bottom-left-radius: var(--border-radius);
+  }
+
+  .status-unsaved {
+    background-color: #ff4444;
+  }
+
+  .status-modified {
+    background-color: #ffbb33;
+  }
+
+  .status-saved {
+    background-color: #00C851;
   }
 
   /* ========================================
@@ -116,7 +173,7 @@
     border-radius: 50%;
     border: 1px solid var(--text-black);
     background: transparent;
-    cursor: pointer;
+    cursor: button;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -166,4 +223,33 @@
 
 .logout-button:hover {
   background-color: rgba(0,0,0,0.05);
+}
+
+/* ========================================
+   🟢 CONTAINER STYLES
+   ======================================== */
+.content-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  position: relative;
+}
+
+.dashboard-header {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+.action-container {
+  width: 100%;
+  max-width: 600px;
+  margin: 20px 0;
+  display: flex;
+  justify-content: flex-start;
 }

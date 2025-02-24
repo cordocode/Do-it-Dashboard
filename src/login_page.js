@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
-import './components.css';
+import '../src/components.css';
 
 const ClientID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
@@ -51,10 +51,9 @@ function LoginPage({ setUser }) {
   }
 
   return (
-    <div>
-      <h1>Task Manager</h1>
+    <div className="centered-container">
+      <h1>do it dashboard.</h1>
       {error && <div style={{ color: 'red' }}>{error}</div>}
-
       <GoogleOAuthProvider clientId={ClientID}>
         <GoogleLogin onSuccess={handleSuccess} onError={handleError} />
       </GoogleOAuthProvider>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Box, ProfileButton } from "./components";
 import { useNavigate } from "react-router-dom";
-
+import './components.css';
 
 
 const API_BASE_URL = process.env.NODE_ENV === 'development' 
@@ -29,35 +29,35 @@ function DashboardPage({ user, setUser }) {
 
   // Create a new box in the database (empty content)
   const addBox = () => {
-    fetch(`${API_BASE_URL}/api/boxes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: user.sub || user.email,
-        content: ""
-      })
-    })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          setBoxes([...boxes, data.box]);
-        }
-      })
-      .catch(err => console.error(err));
+    setBoxes([...boxes, { id: null, content: "" }]);
   };
 
   // Delete a box in the database
   const deleteBox = (boxId) => {
-    fetch(`${API_BASE_URL}/api/boxes/${boxId}`, {
-      method: 'DELETE',
-    })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          setBoxes(boxes.filter(b => b.id !== boxId));
-        }
+    // Remove from local state first
+    setBoxes(boxes.filter(b => b.id !== boxId));
+    
+    // Only call API if the box was saved (has an ID)
+    if (boxId) {
+      fetch(`${API_BASE_URL}/api/boxes/${boxId}`, {
+        method: 'DELETE',
       })
-      .catch(err => console.error(err));
+        .then(response => response.json())
+        .then(data => {
+          if (!data.success) {
+            console.error('Failed to delete box from server');
+            // Optionally restore the box if server delete failed
+          }
+        })
+        .catch(err => console.error(err));
+    }
+  };
+
+  // Handler for when a box is saved
+  const handleBoxSave = (oldId, newBox) => {
+    setBoxes(boxes.map(box => 
+      (box.id === oldId || (!box.id && !oldId)) ? newBox : box
+    ));
   };
 
   // Standard logout
@@ -68,22 +68,27 @@ function DashboardPage({ user, setUser }) {
   };
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '1rem' }}>
+    <>
+      <div className="dashboard-header">
         <ProfileButton onLogout={handleLogout} />
       </div>
-      
-      <button onClick={addBox}>Add Box</button>
+      <div className="content-container">
+        <div className="action-container">
+          <button onClick={addBox}>Add Box</button>
+        </div>
 
-      {boxes.map(box => (
-        <Box
-          key={box.id}
-          id={box.id}
-          onDelete={deleteBox}
-          initialContent={box.content}
-        />
-      ))}
-    </div>
+        {boxes.map(box => (
+          <Box
+            key={box.id || Math.random()} // Temporary key for unsaved boxes
+            id={box.id}
+            user={user}
+            onDelete={deleteBox}
+            onSave={handleBoxSave}
+            initialContent={box.content}
+          />
+        ))}
+      </div>
+    </>
   );
 }
 
