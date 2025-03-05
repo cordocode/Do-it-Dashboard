@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode";
 import './components.css';
@@ -32,8 +32,8 @@ export function GoogleLoginButton({ onSuccess, onError }) {
 export function ConfirmationPopup({ onConfirm, onCancel }) {
   return (
     <div className="confirmation-popup">
-      <button className="confirmation-button" onClick={onConfirm}>✓</button>
-      <button className="confirmation-button" onClick={onCancel}>✗</button>
+      <button className="confirmation-button" onClick={onConfirm}>Confirm</button>
+      <button className="confirmation-button" onClick={onCancel}>Cancel</button>
     </div>
   );
 }
@@ -58,6 +58,8 @@ export function Box({ id, user, onDelete, onSave, initialContent = "" }) {
   const [text, setText] = useState(initialContent);
   const [savedText, setSavedText] = useState(initialContent);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const textareaRef = useRef(null);
+  const containerRef = useRef(null);
 
   // Determine status based on current state
   const getStatus = () => {
@@ -66,10 +68,24 @@ export function Box({ id, user, onDelete, onSave, initialContent = "" }) {
     return "modified";
   };
 
+  useEffect(() => {
+    // Auto-resize textarea on initial load
+    if (textareaRef.current) {
+      adjustTextareaHeight();
+    }
+  }, []);
+
+  const adjustTextareaHeight = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  };
+
   const handleTextChange = (e) => {
     setText(e.target.value);
-    e.target.style.height = "auto";
-    e.target.style.height = e.target.scrollHeight + "px";
+    adjustTextareaHeight();
   };
 
   const handleSave = () => {
@@ -106,13 +122,15 @@ export function Box({ id, user, onDelete, onSave, initialContent = "" }) {
   };
 
   return (
-    <div className="box-container">
+    <div className="box-container" ref={containerRef}>
       <div className="textarea-container">
         <StatusIndicator status={getStatus()} />
         <textarea
+          ref={textareaRef}
           className="box-textarea"
           value={text}
           onChange={handleTextChange}
+          placeholder="Write your task here..."
         />
       </div>
       <div className="box-controls">
@@ -120,13 +138,13 @@ export function Box({ id, user, onDelete, onSave, initialContent = "" }) {
           className={`save-button ${getStatus() === 'saved' ? 'saved' : ''}`} 
           onClick={handleSave}
         >
-          Save
+          {getStatus() === 'saved' ? 'Saved' : 'Save'}
         </button>
         <button 
           className="delete-button" 
           onClick={() => setShowConfirmation(true)}
         >
-          delete
+          Delete
         </button>
         {showConfirmation && (
           <ConfirmationPopup
@@ -144,6 +162,21 @@ export function Box({ id, user, onDelete, onSave, initialContent = "" }) {
    ======================================== */
 export function ProfileButton({ onLogout }) {
   const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const handleLogout = () => {
     onLogout();
@@ -151,7 +184,7 @@ export function ProfileButton({ onLogout }) {
   };
 
   return (
-    <div className="profile-container">
+    <div className="profile-container" ref={dropdownRef}>
       <button 
         className="profile-button"
         onClick={() => setIsOpen(!isOpen)}

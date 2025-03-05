@@ -52,8 +52,8 @@ function LoginPage({ setUser }) {
 
   return (
     <div className="centered-container">
-      <h1>do it dashboard.</h1>
-      {error && <div style={{ color: 'red' }}>{error}</div>}
+      <h1>Hey there</h1>
+      {error && <div className="google-login-error">{error}</div>}
       <GoogleOAuthProvider clientId={ClientID}>
         <GoogleLogin onSuccess={handleSuccess} onError={handleError} />
       </GoogleOAuthProvider>

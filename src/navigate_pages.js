@@ -14,7 +14,10 @@ function NavigatePages() {
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
-    setIsLoading(false);
+    // Add a small delay to show loading animation
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 500);
   }, []);
 
   // Modified setUser to also save to localStorage
@@ -28,7 +31,11 @@ function NavigatePages() {
   };
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+      </div>
+    );
   }
 
   return (
