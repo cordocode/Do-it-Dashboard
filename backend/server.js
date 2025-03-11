@@ -89,6 +89,10 @@ app.put('/api/boxes/:id', async (req, res) => {
   }
 });
 
+const setupTwilioService = require('./twilioService');
+const twilioService = setupTwilioService(pool);
+twilioService.routes(app);
+
 // Just a test to confirm server runs
 app.get('/', (req, res) => {
   res.send('Server is running!');

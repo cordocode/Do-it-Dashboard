@@ -18,6 +18,7 @@ const pool = new Pool({
   ssl: false
 });
 
+
 // 1) Test endpoint
 app.get('/db-test', async (req, res) => {
   try {
@@ -87,6 +88,10 @@ app.put('/api/boxes/:id', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+const setupTwilioService = require('./twilioservice.js');
+const twilioService = setupTwilioService(pool);
+twilioService.routes(app);
 
 // Just a test to confirm server runs
 app.get('/', (req, res) => {
