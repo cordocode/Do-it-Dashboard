@@ -423,6 +423,26 @@ button:disabled {
   background-color: rgba(245, 101, 101, 0.1);
 }
 
+.profile-menu-item {
+  width: 100%;
+  padding: var(--spacing-3) var(--spacing-4);
+  text-align: left;
+  background: transparent;
+  border-radius: 0;
+  color: var(--text-color);
+  font-weight: 500;
+  transition: background-color var(--transition-fast);
+}
+
+.profile-menu-item:hover {
+  background-color: var(--divider-color);
+}
+
+.profile-dropdown {
+  display: flex;
+  flex-direction: column;
+}
+
 /* ========================================
    🟢 CONTAINER STYLES
    ======================================== */
@@ -504,3 +524,166 @@ button:disabled {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ========================================
+   🟢 PROFILE PAGE STYLES
+   ======================================== */
+   .profile-content {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-6);
+  }
+  
+  .profile-section {
+    background: var(--surface-color);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-5);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--transition-normal);
+  }
+  
+  .profile-section:hover {
+    box-shadow: var(--shadow-md);
+  }
+  
+  .profile-section h2 {
+    font-size: var(--font-size-lg);
+    margin-top: 0;
+    margin-bottom: var(--spacing-4);
+    padding-bottom: var(--spacing-3);
+    border-bottom: 1px solid var(--divider-color);
+  }
+  
+  .profile-field {
+    display: flex;
+    margin-bottom: var(--spacing-3);
+  }
+  
+  .profile-field label {
+    font-weight: 600;
+    width: 100px;
+    color: var(--text-secondary);
+  }
+  
+  .back-button {
+    align-self: flex-start;
+    margin-top: var(--spacing-4);
+    background-color: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+  }
+  
+  .back-button:hover {
+    background-color: var(--divider-color);
+    color: var(--text-color);
+  }
+  
+  /* Phone verification styles */
+  .verified-phone-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--spacing-4);
+  }
+  
+  .verified-status {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    color: var(--success-color);
+    margin-bottom: var(--spacing-3);
+  }
+  
+  .verified-icon {
+    stroke: var(--success-color);
+  }
+  
+  .verified-phone-number {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    margin-bottom: var(--spacing-3);
+  }
+  
+  .phone-info {
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: var(--spacing-4);
+  }
+  
+  .secondary-button {
+    background-color: transparent;
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+  }
+  
+  .secondary-button:hover {
+    background-color: rgba(217, 126, 74, 0.1);
+  }
+  
+  .phone-verification-form {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .verification-instructions {
+    margin-bottom: var(--spacing-4);
+    color: var(--text-secondary);
+  }
+  
+  .phone-input-container, .verification-code-container {
+    display: flex;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-4);
+  }
+  
+  .phone-input, .verification-code-input {
+    flex: 1;
+    padding: var(--spacing-3);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    font-family: var(--font-family);
+    font-size: var(--font-size-md);
+  }
+  
+  .phone-input:focus, .verification-code-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+  }
+  
+  .primary-button {
+    background-color: var(--primary-color);
+    color: white;
+    padding: var(--spacing-3) var(--spacing-4);
+    border-radius: var(--border-radius-md);
+    font-weight: 500;
+  }
+  
+  .primary-button:hover {
+    background-color: var(--primary-dark);
+  }
+  
+  .text-button {
+    background: transparent;
+    color: var(--primary-color);
+    border: none;
+    padding: var(--spacing-2);
+    margin-top: var(--spacing-2);
+    font-weight: normal;
+  }
+  
+  .text-button:hover {
+    background: transparent;
+    text-decoration: underline;
+    transform: none;
+  }
+  
+  .error-message {
+    color: var(--error-color);
+    margin-bottom: var(--spacing-3);
+    padding: var(--spacing-2);
+    background-color: rgba(245, 101, 101, 0.1);
+    border-radius: var(--border-radius-sm);
+  }

@@ -87,10 +87,18 @@ function DashboardPage({ user, setUser }) {
     navigate('/');
   };
 
+  // Function to navigate to profile page
+  const handleProfileClick = () => {
+    navigate('/profile');
+  };
+
   return (
     <>
       <div className="dashboard-header">
-        <ProfileButton onLogout={handleLogout} />
+        <ProfileButton 
+          onLogout={handleLogout} 
+          onProfileClick={handleProfileClick}
+        />
       </div>
       <div className="content-container">
         <h1>Let's get 'er done, {getUserFirstName()}</h1>

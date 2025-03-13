@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode";
+import { useNavigate } from 'react-router-dom';
 import './components.css';
 
 const API_BASE_URL = process.env.NODE_ENV === 'development' 
@@ -160,57 +161,67 @@ export function Box({ id, user, onDelete, onSave, initialContent = "" }) {
 /* ========================================
    🟢 PROFILE BUTTON COMPONENT
    ======================================== */
-export function ProfileButton({ onLogout }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
+   export function ProfileButton({ onLogout, onProfileClick }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef(null);
+  
+    // Close dropdown when clicking outside
+    useEffect(() => {
+      function handleClickOutside(event) {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+          setIsOpen(false);
+        }
       }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+  
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }, []);
+  
+    const handleLogout = () => {
+      onLogout();
+      setIsOpen(false);
     };
-  }, []);
-
-  const handleLogout = () => {
-    onLogout();
-    setIsOpen(false);
-  };
-
-  return (
-    <div className="profile-container" ref={dropdownRef}>
-      <button 
-        className="profile-button"
-        onClick={() => setIsOpen(!isOpen)}
-        aria-label="Profile"
-      >
-        <svg 
-          width="16" 
-          height="16" 
-          viewBox="0 0 24 24" 
-          fill="none" 
-          stroke="currentColor" 
-          strokeWidth="2" 
-          strokeLinecap="round" 
-          strokeLinejoin="round"
+  
+    const goToProfile = () => {
+      if (onProfileClick) {
+        onProfileClick();
+      }
+      setIsOpen(false);
+    };
+  
+    return (
+      <div className="profile-container" ref={dropdownRef}>
+        <button 
+          className="profile-button"
+          onClick={() => setIsOpen(!isOpen)}
+          aria-label="Profile"
         >
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
-        </svg>
-      </button>
-      {isOpen && (
-        <div className="profile-dropdown">
-          <button className="logout-button" onClick={handleLogout}>
-            Sign out
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
+          <svg 
+            width="16" 
+            height="16" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          >
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        </button>
+        {isOpen && (
+          <div className="profile-dropdown">
+            <button className="profile-menu-item" onClick={goToProfile}>
+              Profile
+            </button>
+            <button className="logout-button" onClick={handleLogout}>
+              Sign out
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }

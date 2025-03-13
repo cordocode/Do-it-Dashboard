@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import LoginPage from './login_page';
 import DashboardPage from './dashboard_page';
+import ProfilePage from './profile_page';
 import './components.css';
 
 function NavigatePages() {
@@ -47,6 +48,10 @@ function NavigatePages() {
         <Route 
           path="/dashboard" 
           element={user ? <DashboardPage user={user} setUser={handleSetUser} /> : <Navigate to="/" />} 
+        />
+        <Route 
+          path="/profile" 
+          element={user ? <ProfilePage user={user} setUser={handleSetUser} /> : <Navigate to="/" />} 
         />
       </Routes>
     </Router>

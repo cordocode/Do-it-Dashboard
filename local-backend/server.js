@@ -6,6 +6,7 @@ require('dotenv').config();
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 const { Pool } = require('pg');
 
@@ -18,6 +19,47 @@ const pool = new Pool({
   ssl: false
 });
 
+// Get user profile
+app.get('/api/user-profile', async (req, res) => {
+  try {
+    const { userId } = req.query;
+    
+    // First check if user exists
+    let userResult = await pool.query(
+      'SELECT * FROM users WHERE user_id = $1',
+      [userId]
+    );
+    
+    // If user doesn't exist, create a new record
+    if (userResult.rows.length === 0) {
+      await pool.query(
+        'INSERT INTO users (user_id) VALUES ($1)',
+        [userId]
+      );
+      
+      // Get the newly created user
+      userResult = await pool.query(
+        'SELECT * FROM users WHERE user_id = $1',
+        [userId]
+      );
+    }
+    
+    const profile = userResult.rows[0];
+    
+    res.json({
+      success: true,
+      profile: {
+        first_name: profile.first_name,
+        email: profile.email,
+        phone_number: profile.phone_number,
+        phone_verified: profile.phone_verified
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // 1) Test endpoint
 app.get('/db-test', async (req, res) => {
