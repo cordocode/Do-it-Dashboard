@@ -10,6 +10,16 @@ app.use(express.urlencoded({ extended: false }));
 
 const { Pool } = require('pg');
 
+const getSSLConfig = () => {
+  if (process.env.NODE_ENV === 'development') {
+    return false; // Matches your local server configuration
+  } else {
+    return { 
+      rejectUnauthorized: false // Matches your previous production configuration
+    };
+  }
+};
+
 // Create a new pool using .env variables
 const pool = new Pool({
   user: process.env.DB_USER,
@@ -17,7 +27,7 @@ const pool = new Pool({
   host: process.env.DB_HOST,
   database: process.env.DB_NAME,
   port: process.env.DB_PORT,
-  ssl: { rejectUnauthorized: false }
+  ssl: getSSLConfig()
 });
 
 // Get user profile
@@ -178,7 +188,7 @@ app.put('/api/boxes/:id', async (req, res) => {
   }
 });
 
-const setupTwilioService = require('./twilioService');
+const setupTwilioService = require('./twilioservice');
 const twilioService = setupTwilioService(pool);
 twilioService.routes(app);
 

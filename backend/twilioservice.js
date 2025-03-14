@@ -5,7 +5,7 @@ require('dotenv').config();
 require('dotenv').config({ path: '.env.development' });
 
 const twilio = require('twilio');
-const setupOpenAIService = require('../middleend/openAIservice');
+const setupOpenAIService = require('./openAIservice');
 
 function setupTwilioService(pool) {
   const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
