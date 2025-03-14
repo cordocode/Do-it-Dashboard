@@ -83,6 +83,31 @@ app.put('/api/user-profile', async (req, res) => {
   }
 });
 
+// Add this to both server.js files
+app.get('/api/user-by-phone', async (req, res) => {
+  try {
+    const { phone } = req.query;
+    
+    if (!phone) {
+      return res.status(400).json({ success: false, error: 'Phone number is required' });
+    }
+    
+    const result = await pool.query(
+      'SELECT * FROM users WHERE phone_number = $1 AND phone_verified = TRUE',
+      [phone]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.json({ success: false, error: 'User not found' });
+    }
+    
+    res.json({ success: true, user: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 1) Test endpoint
 app.get('/db-test', async (req, res) => {
   try {

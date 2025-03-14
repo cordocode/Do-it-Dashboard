@@ -1,13 +1,18 @@
+// twilioservice.js - For both backend and local-backend
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 require('dotenv').config({ path: '.env.development' });
 
 const twilio = require('twilio');
+const setupOpenAIService = require('../middleend/openAIservice');
 
 function setupTwilioService(pool) {
   const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
   const twilioNumber = process.env.TWILIO_NUMBER;
+  
+  // Initialize OpenAI service
+  const openAIService = setupOpenAIService();
 
   // Function to generate a random 6-digit code
   function generateVerificationCode() {
@@ -96,13 +101,14 @@ function setupTwilioService(pool) {
 
     // 3) Twilio webhook for incoming SMS
     app.post('/twilio/webhook', async (req, res) => {
-      // Extract the incoming message and the sender's phone number
+      const userMessage = req.body.Body;
       const fromNumber = req.body.From;
-      // We can just strip spaces here for matching, or use full normalization if you prefer
-      const normalizedNumber = fromNumber.replace(/\s/g, ''); 
+      
+      // Use normalized phone number to match DB format
+      const normalizedNumber = fromNumber.replace(/\s/g, '');
 
       try {
-        // Query the database for a verified user with that exact phone_number
+        // Identify user
         const userResult = await pool.query(
           'SELECT * FROM users WHERE phone_number = $1 AND phone_verified = TRUE',
           [normalizedNumber]
@@ -110,13 +116,83 @@ function setupTwilioService(pool) {
         const user = userResult.rows[0];
 
         if (!user) {
-          // If no user is found, respond indicating the number is not linked
-          return res.send('<Response><Message>Your number is not linked to an account.</Message></Response>');
+          res.send('<Response><Message>Your number is not linked to an account.</Message></Response>');
+          return;
         }
 
-        // Use the user's first_name if available; otherwise, use a generic greeting
-        const userName = user.first_name || 'there';
-        res.send(`<Response><Message>Hello, ${userName}!</Message></Response>`);
+        // Process with OpenAI to understand intent
+        const intentData = await openAIService.analyzeMessageIntent(userMessage);
+        let responseText = '';
+
+        // Take action based on intent
+        switch (intentData.intent) {
+          case 'add_task':
+            if (intentData.task_content) {
+              // Add the task to the database
+              await pool.query(
+                'INSERT INTO boxes (user_id, content) VALUES ($1, $2)',
+                [user.user_id, intentData.task_content]
+              );
+              responseText = `Added task: ${intentData.task_content}`;
+            } else {
+              responseText = "I couldn't determine what task to add. Please try again with more details.";
+            }
+            break;
+            
+          case 'remove_task':
+            if (intentData.task_identifier) {
+              // First get all the user's tasks
+              const tasksResult = await pool.query(
+                'SELECT * FROM boxes WHERE user_id = $1 ORDER BY id ASC',
+                [user.user_id]
+              );
+              
+              // Try to identify which task to remove
+              const taskIndex = parseInt(intentData.task_identifier) - 1;
+              let taskToRemove = null;
+
+              if (!isNaN(taskIndex) && taskIndex >= 0 && taskIndex < tasksResult.rows.length) {
+                // User specified a task by number
+                taskToRemove = tasksResult.rows[taskIndex];
+              } else {
+                // Try to match by content
+                taskToRemove = tasksResult.rows.find(task => 
+                  task.content.toLowerCase().includes(intentData.task_identifier.toLowerCase())
+                );
+              }
+
+              if (taskToRemove) {
+                await pool.query('DELETE FROM boxes WHERE id = $1', [taskToRemove.id]);
+                responseText = `Removed task: ${taskToRemove.content}`;
+              } else {
+                responseText = `I couldn't find a task matching "${intentData.task_identifier}". Please try again.`;
+              }
+            } else {
+              responseText = "I couldn't determine which task to remove. Please specify by number or description.";
+            }
+            break;
+            
+          case 'list_tasks':
+            const listResult = await pool.query(
+              'SELECT * FROM boxes WHERE user_id = $1 ORDER BY id ASC',
+              [user.user_id]
+            );
+            
+            if (listResult.rows.length > 0) {
+              responseText = "Your tasks:\n" + 
+                listResult.rows.map((task, index) => `${index + 1}. ${task.content}`).join("\n");
+            } else {
+              responseText = "You don't have any tasks yet.";
+            }
+            break;
+            
+          default:
+            // Generate a friendly response via OpenAI for unrecognized commands
+            responseText = await openAIService.generateUserResponse(intentData);
+        }
+
+        // Send the response back to the user
+        res.send(`<Response><Message>${responseText}</Message></Response>`);
       } catch (err) {
         console.error('Error in /twilio/webhook:', err);
         res.send('<Response><Message>An error occurred. Please try again later.</Message></Response>');
