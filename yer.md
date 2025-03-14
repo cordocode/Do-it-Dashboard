@@ -359,7 +359,97 @@ Unit tests for SMS command parsing
 Integration tests for the verification flow
 End-to-end tests for the complete system
 
+Below is a concise summary of the key lessons, architecture, and context for any future AI or developer who needs to work on this project:
 
+---
 
-My primary users sign in with Google OAuth, and their user_id in the database comes from Google's authentication. The application allows users to create task "boxes" and I want to extend this so they can interact with these tasks via SMS.
-Please provide detailed implementation guidance for each component, with code examples where appropriate, focusing first on the frontend verification flow and then on the enhanced SMS command processing.
+## 1. **Environments & Architecture**
+
+- **Two Backends (Local & Production)**  
+  - **Local**: Runs on `http://localhost:8080`, connects to a local PostgreSQL database, used for development.  
+  - **Production**: Deployed at `https://backend.formybuddy.com`, connects to a separate production PostgreSQL database, used by real users.
+
+- **Frontend (React)**  
+  - Hosted locally at `http://localhost:3000` (development) or deployed at `https://formybuddy.com` (production).  
+  - Key React components/pages:  
+    - **`LoginPage`** (handles Google OAuth),  
+    - **`DashboardPage`** (lists tasks/“boxes”),  
+    - **`ProfilePage`** (manages name and phone verification),  
+    - **`navigate_pages.js`** (sets up routing).
+
+- **Database Schema**  
+  - **`users`** table (main fields):
+    - `user_id` (string from Google `sub` or fallback to email),
+    - `first_name` (user’s editable name),
+    - `email`,
+    - `phone_number` (stored in +E.164 format),
+    - `phone_verified` (boolean),
+    - `verification_code` (for SMS verification).  
+  - **`boxes`** table (for tasks).
+
+---
+
+## 2. **Twilio Integration**
+
+- **Phone Verification Endpoints**  
+  - `POST /api/send-verification-code`: Sends a 6-digit code to the user’s phone.  
+  - `POST /api/verify-phone`: Checks the code and sets `phone_verified = TRUE` if correct.
+
+- **Inbound SMS Webhook** (`POST /twilio/webhook`)  
+  - Twilio calls this URL when an SMS is sent to the Twilio number.  
+  - The server looks up the `phone_number` in the `users` table. If found and `phone_verified = TRUE`, it replies with “Hello, [first_name]!” or a fallback if `first_name` is missing.
+
+- **URL-Encoded Data**  
+  - Twilio sends inbound SMS data as `application/x-www-form-urlencoded`, so `server.js` must include:
+    ```js
+    app.use(express.urlencoded({ extended: false }));
+    ```
+
+- **ngrok for Local Testing**  
+  - To test inbound SMS locally, you use `ngrok http 8080` and temporarily set Twilio’s “A MESSAGE COMES IN” URL to the ngrok domain.
+
+---
+
+## 3. **User Profile & Name Handling**
+
+- **`ProfilePage`**  
+  - Displays/updates the user’s `first_name` in the database via `PUT /api/user-profile`.  
+  - Manages phone verification (inputting phone number, sending verification code, verifying code).
+
+- **`DashboardPage`**  
+  - Formerly pulled the user’s name from Google token.  
+  - Updated to fetch `first_name` from the database (via `GET /api/user-profile`) so the user can set a custom name independent of Google.
+
+- **Saving the Name**  
+  - The React state `firstName` is edited on the Profile page, then sent to the backend with a `PUT /api/user-profile` call.  
+  - This ensures `users.first_name` is always up to date and available for Twilio greetings, the dashboard, etc.
+
+---
+
+## 4. **Key Lessons Learned**
+
+1. **Separate Local & Production Databases**  
+   - Always confirm which environment you’re running. If the local DB is missing data, Twilio might respond with “number not linked,” even though it’s in production.
+
+2. **Normalization of Phone Numbers**  
+   - Storing phone numbers in `+E.164` format (e.g., `+13039094182`) ensures inbound Twilio messages (`req.body.From`) match exactly.
+
+3. **URL Encoding for Twilio**  
+   - Twilio sends inbound SMS data as URL-encoded, so `express.urlencoded({ extended: false })` is required in addition to `express.json()`.
+
+4. **Profile Data in the DB**  
+   - Relying solely on Google tokens for a user’s name is limiting. Storing a `first_name` column lets users set a custom name that Twilio and the app can consistently use.
+
+5. **Frontend-Backend Sync**  
+   - The React frontend calls endpoints like `/api/user-profile`, `/api/boxes`, `/api/send-verification-code`, etc. The backend must have matching routes and properly parse the request body.
+
+---
+
+### Final Takeaway
+
+To maintain and extend this app, a future AI or developer should:
+
+- Know which backend (local vs. production) they’re working on.  
+- Understand Twilio’s inbound/outbound SMS flow and the importance of phone number formatting.  
+- Recognize that the user’s name, phone number, and verification status are stored in the `users` table, not just in the Google token.  
+- Keep the frontend and backend endpoints in sync to ensure data flows correctly (especially for phone verification and name updates).

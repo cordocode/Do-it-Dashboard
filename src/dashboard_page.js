@@ -5,31 +5,32 @@ import './components.css';
 
 const API_BASE_URL = process.env.NODE_ENV === 'development' 
   ? 'http://localhost:8080' 
-  : 'https://backend.formybuddy.com'
+  : 'https://backend.formybuddy.com';
 
 function DashboardPage({ user, setUser }) {
+  const [displayName, setDisplayName] = useState(''); // Name from the DB
   const [boxes, setBoxes] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Extract user's first name from their full name or email
-  const getUserFirstName = () => {
-    if (!user) return '';
-    
-    // Try to get name from Google profile data
-    if (user.name) {
-      return user.name.split(' ')[0];
-    } 
-    
-    // Fall back to email if name not available
-    if (user.email) {
-      return user.email.split('@')[0];
+  // 1) Fetch the user's name from the database
+  useEffect(() => {
+    if (user) {
+      fetch(`${API_BASE_URL}/api/user-profile?userId=${user.sub || user.email}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success && data.profile.first_name) {
+            setDisplayName(data.profile.first_name);
+          } else {
+            // Fallback if DB has no name
+            setDisplayName('friend');
+          }
+        })
+        .catch(err => console.error('Error fetching user name:', err));
     }
-    
-    return 'friend'; // Default fallback
-  };
+  }, [user]);
 
-  // Fetch existing boxes from the backend for this user
+  // 2) Fetch existing boxes from the backend for this user
   useEffect(() => {
     if (user) {
       setLoading(true);
@@ -42,18 +43,18 @@ function DashboardPage({ user, setUser }) {
           setLoading(false);
         })
         .catch(err => {
-          console.error(err);
+          console.error('Error fetching boxes:', err);
           setLoading(false);
         });
     }
   }, [user]);
 
-  // Create a new box in the database (empty content)
+  // 3) Create a new box in the database (empty content)
   const addBox = () => {
     setBoxes([...boxes, { id: null, content: "" }]);
   };
 
-  // Delete a box in the database
+  // 4) Delete a box in the database
   const deleteBox = (boxId) => {
     // Remove from local state first
     setBoxes(boxes.filter(b => b.id !== boxId));
@@ -73,21 +74,21 @@ function DashboardPage({ user, setUser }) {
     }
   };
 
-  // Handler for when a box is saved
+  // 5) Handler for when a box is saved
   const handleBoxSave = (oldId, newBox) => {
     setBoxes(boxes.map(box => 
       (box.id === oldId || (!box.id && !oldId)) ? newBox : box
     ));
   };
 
-  // Standard logout
+  // 6) Standard logout
   const handleLogout = () => {
     localStorage.removeItem('user');
     setUser(null);
     navigate('/');
   };
 
-  // Function to navigate to profile page
+  // 7) Navigate to profile page
   const handleProfileClick = () => {
     navigate('/profile');
   };
@@ -101,7 +102,7 @@ function DashboardPage({ user, setUser }) {
         />
       </div>
       <div className="content-container">
-        <h1>Let's get 'er done, {getUserFirstName()}</h1>
+        <h1>Let's get 'er done, {displayName}</h1>
         <div className="action-container">
           <button onClick={addBox}>Add New Task</button>
         </div>

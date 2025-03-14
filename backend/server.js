@@ -62,6 +62,27 @@ app.get('/api/user-profile', async (req, res) => {
   }
 });
 
+app.put('/api/user-profile', async (req, res) => {
+  try {
+    const { userId, firstName } = req.body;
+    
+    // Update the user record
+    const result = await pool.query(
+      'UPDATE users SET first_name = $1 WHERE user_id = $2 RETURNING *',
+      [firstName, userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    res.json({ success: true, user: result.rows[0] });
+  } catch (err) {
+    console.error('Error updating user profile:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 1) Test endpoint
 app.get('/db-test', async (req, res) => {
   try {

@@ -7,7 +7,9 @@ const API_BASE_URL = process.env.NODE_ENV === 'development'
   ? 'http://localhost:8080' 
   : 'https://backend.formybuddy.com';
 
-// PhoneVerifiedSection component
+/* ========================================
+   🟢 Verified Phone Section
+   ======================================== */
 function PhoneVerifiedSection({ phoneNumber, onChangeRequested }) {
   return (
     <div className="verified-phone-container">
@@ -44,7 +46,9 @@ function PhoneVerifiedSection({ phoneNumber, onChangeRequested }) {
   );
 }
 
-// PhoneVerificationForm component
+/* ========================================
+   🟢 Phone Verification Form
+   ======================================== */
 function PhoneVerificationForm({ userId, initialPhoneNumber, onVerificationSuccess }) {
   const [phoneInput, setPhoneInput] = useState(initialPhoneNumber || '');
   const [verificationSent, setVerificationSent] = useState(false);
@@ -52,6 +56,7 @@ function PhoneVerificationForm({ userId, initialPhoneNumber, onVerificationSucce
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Send verification code
   const sendVerificationCode = () => {
     if (!phoneInput) {
       setError('Please enter a phone number');
@@ -91,6 +96,7 @@ function PhoneVerificationForm({ userId, initialPhoneNumber, onVerificationSucce
       });
   };
 
+  // Verify the code
   const verifyCode = () => {
     if (!verificationCode || verificationCode.length !== 6) {
       setError('Please enter the 6-digit verification code');
@@ -175,31 +181,56 @@ function PhoneVerificationForm({ userId, initialPhoneNumber, onVerificationSucce
             </button>
           </div>
           {error && <div className="error-message">{error}</div>}
-          <button className="text-button" onClick={() => setVerificationSent(false)} disabled={isSubmitting}>Change Phone Number</button>
-          <button className="text-button" onClick={sendVerificationCode} disabled={isSubmitting}>Resend Code</button>
+          <button 
+            className="text-button" 
+            onClick={() => setVerificationSent(false)} 
+            disabled={isSubmitting}
+          >
+            Change Phone Number
+          </button>
+          <button 
+            className="text-button" 
+            onClick={sendVerificationCode} 
+            disabled={isSubmitting}
+          >
+            Resend Code
+          </button>
         </>
       )}
     </div>
   );
 }
 
+/* ========================================
+   🟢 Main ProfilePage Component
+   ======================================== */
 function ProfilePage({ user, setUser }) {
   const [firstName, setFirstName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (user) {
+      // Initialize the firstName from Google token or fallback
       setFirstName(user.given_name || user.name?.split(' ')[0] || '');
       
+      // Fetch the user's profile from backend
       fetch(`${API_BASE_URL}/api/user-profile?userId=${user.sub || user.email}`)
         .then(response => response.json())
         .then(data => {
           if (data.success) {
+            // Update phone details
             setPhoneNumber(data.profile.phone_number || '');
             setIsPhoneVerified(data.profile.phone_verified || false);
+
+            // If the DB has a stored first_name, use that instead
+            if (data.profile.first_name) {
+              setFirstName(data.profile.first_name);
+            }
           }
           setLoading(false);
         })
@@ -210,18 +241,55 @@ function ProfilePage({ user, setUser }) {
     }
   }, [user]);
 
+  // Logs the user out
   const handleLogout = () => {
     localStorage.removeItem('user');
     setUser(null);
     navigate('/');
   };
 
+  // Navigates to the profile page (useful if there's a button for it)
   const handleProfileClick = () => navigate('/profile');
+
+  // Saves the user's name to the DB via PUT /api/user-profile
+  const saveName = () => {
+    setIsSaving(true);
+    setSaveSuccess(false);
+    
+    fetch(`${API_BASE_URL}/api/user-profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: user.sub || user.email,
+        firstName
+      })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setSaveSuccess(true);
+          // Reset success message after 3 seconds
+          setTimeout(() => {
+            setSaveSuccess(false);
+          }, 3000);
+        } else {
+          console.error('Failed to update name:', data.error);
+        }
+        setIsSaving(false);
+      })
+      .catch(err => {
+        console.error('Error updating name:', err);
+        setIsSaving(false);
+      });
+  };
 
   return (
     <>
       <div className="dashboard-header">
-        <ProfileButton onLogout={handleLogout} onProfileClick={handleProfileClick} />
+        <ProfileButton 
+          onLogout={handleLogout} 
+          onProfileClick={handleProfileClick} 
+        />
       </div>
       <div className="content-container">
         <h1>Your Profile</h1>
@@ -229,20 +297,79 @@ function ProfilePage({ user, setUser }) {
           <div className="loading-spinner"></div>
         ) : (
           <div className="profile-content">
+            {/* 🟢 Account Information Section */}
             <div className="profile-section">
               <h2>Account Information</h2>
-              <div className="profile-field"><label>Name:</label><span>{firstName}</span></div>
-              <div className="profile-field"><label>Email:</label><span>{user?.email}</span></div>
+              
+              {/* Name field (editable) */}
+              <div className="profile-field">
+                <label>Name:</label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Enter your name"
+                  disabled={isSaving}
+                />
+              </div>
+              
+              {/* Email (read-only) */}
+              <div className="profile-field">
+                <label>Email:</label>
+                <span>{user?.email}</span>
+              </div>
+
+              <button 
+                className={`save-name-button ${isSaving ? 'saving' : ''} ${saveSuccess ? 'saved' : ''}`}
+                onClick={saveName}
+                disabled={isSaving}
+              >
+                {isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Name'}
+              </button>
+              
+              {saveSuccess && (
+                <div className="save-confirmation">
+                  <svg 
+                    width="16" 
+                    height="16" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  >
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+                  Name saved successfully!
+                </div>
+              )}
             </div>
+
+            {/* 🟢 Phone Verification Section */}
             <div className="profile-section">
               <h2>Phone Verification</h2>
               {isPhoneVerified ? (
-                <PhoneVerifiedSection phoneNumber={phoneNumber} onChangeRequested={() => setIsPhoneVerified(false)} />
+                <PhoneVerifiedSection 
+                  phoneNumber={phoneNumber} 
+                  onChangeRequested={() => setIsPhoneVerified(false)} 
+                />
               ) : (
-                <PhoneVerificationForm userId={user?.sub || user?.email} initialPhoneNumber={phoneNumber} onVerificationSuccess={(phone) => { setPhoneNumber(phone); setIsPhoneVerified(true); }} />
+                <PhoneVerificationForm 
+                  userId={user?.sub || user?.email} 
+                  initialPhoneNumber={phoneNumber} 
+                  onVerificationSuccess={(phone) => {
+                    setPhoneNumber(phone);
+                    setIsPhoneVerified(true);
+                  }} 
+                />
               )}
             </div>
-            <button className="back-button" onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
+
+            <button className="back-button" onClick={() => navigate('/dashboard')}>
+              Back to Dashboard
+            </button>
           </div>
         )}
       </div>
