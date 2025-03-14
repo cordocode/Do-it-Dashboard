@@ -16,6 +16,7 @@
 .env
 local-backend/.env
 middleend/.env
+backend/.env
 
 # misc
 .DS_Store
