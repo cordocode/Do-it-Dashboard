@@ -62,6 +62,117 @@ function setupTwilioService(pool) {
       }
     });
 
+    require('dotenv').config(); // If you use a local .env file for dev
+const express = require('express');
+const cors = require('cors');
+const twilio = require('twilio');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// 1) Pull in Twilio environment variables from EB
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken  = process.env.TWILIO_AUTH_TOKEN;
+const twilioNumber = process.env.TWILIO_NUMBER;
+
+// 2) Create a Twilio client
+const twilioClient = twilio(accountSid, authToken);
+
+// 3) Example route: Send verification code
+app.post('/api/send-verification-code', async (req, res) => {
+  try {
+    const { userId, phoneNumber } = req.body;
+
+    // Generate a random 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000);
+
+    // TODO: Store that code in your DB for this user (Postgres, etc.)
+    // Example: await pool.query('UPDATE users SET verification_code = $1 WHERE user_id = $2', [code, userId]);
+
+    // Send the SMS
+    await twilioClient.messages.create({
+      body: `Your verification code is ${code}`,
+      from: twilioNumber,    // e.g. +1234567890
+      to: phoneNumber        // e.g. +13035551234
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error sending verification code:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 4) Example route: Verify the code
+app.post('/api/verify-phone', async (req, res) => {
+  try {
+    const { userId, code, phoneNumber } = req.body;
+
+    // Get the stored code from DB
+    // Example:
+    //   const { rows } = await pool.query('SELECT verification_code FROM users WHERE user_id = $1', [userId]);
+    //   if (!rows.length) return res.status(404).json({ success: false, error: 'User not found' });
+    //   const storedCode = rows[0].verification_code;
+
+    // Compare the codes
+    //   if (storedCode == code) {
+    //     // Mark phone as verified in DB
+    //     await pool.query('UPDATE users SET phone_verified = TRUE, phone_number = $1 WHERE user_id = $2', [phoneNumber, userId]);
+    //     res.json({ success: true });
+    //   } else {
+    //     res.status(400).json({ success: false, error: 'Incorrect verification code' });
+    //   }
+
+    // For now, let's just pretend success
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error verifying phone:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 5) Example route for user profile
+app.get('/api/user-profile', async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    // e.g. let result = await pool.query('SELECT * FROM users WHERE user_id = $1', [userId]);
+    // if (!result.rows.length) return res.json({ success: false, error: 'User not found' });
+    // const user = result.rows[0];
+
+    // Return a shape like:
+    const userProfile = {
+      first_name: 'Jimmy',
+      phone_number: '+13035551234',
+      phone_verified: true,
+    };
+    res.json({ success: true, profile: userProfile });
+  } catch (err) {
+    console.error('Error fetching user profile:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 6) Example route for updating user profile
+app.put('/api/user-profile', async (req, res) => {
+  try {
+    const { userId, firstName } = req.body;
+    // e.g. await pool.query('UPDATE users SET first_name = $1 WHERE user_id = $2', [firstName, userId]);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating user profile:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 7) Start the server
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+
     // 2) Verify submitted code
     app.post('/api/verify-phone', async (req, res) => {
       const { userId, code, phoneNumber } = req.body;

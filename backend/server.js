@@ -10,6 +10,7 @@ app.use(express.urlencoded({ extended: false }));
 
 const { Pool } = require('pg');
 
+
 const getSSLConfig = () => {
   if (process.env.NODE_ENV === 'development') {
     return false; // Matches your local server configuration

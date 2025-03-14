@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ProfileButton } from './components';
+import { ProfileButton } from './components'; 
 import './components.css';
 
+// 1) Point this to your backend URL in production.
+//    Locally, you might use "http://localhost:8080".
 const API_BASE_URL = process.env.NODE_ENV === 'development' 
-  ? 'http://localhost:8080' 
-  : 'https://backend.formybuddy.com';
+  ? 'http://localhost:8080'
+  : 'https://backend.formybuddy.com'; 
 
 /* ========================================
-   🟢 Verified Phone Section
-   ======================================== */
+   Verified Phone Section
+======================================== */
 function PhoneVerifiedSection({ phoneNumber, onChangeRequested }) {
   return (
     <div className="verified-phone-container">
@@ -47,8 +49,8 @@ function PhoneVerifiedSection({ phoneNumber, onChangeRequested }) {
 }
 
 /* ========================================
-   🟢 Phone Verification Form
-   ======================================== */
+   Phone Verification Form
+======================================== */
 function PhoneVerificationForm({ userId, initialPhoneNumber, onVerificationSuccess }) {
   const [phoneInput, setPhoneInput] = useState(initialPhoneNumber || '');
   const [verificationSent, setVerificationSent] = useState(false);
@@ -63,6 +65,7 @@ function PhoneVerificationForm({ userId, initialPhoneNumber, onVerificationSucce
       return;
     }
     
+    // Quick phone validation
     const phoneRegex = /^\+?[1-9]\d{9,14}$/;
     if (!phoneRegex.test(phoneInput.replace(/\s+/g, ''))) {
       setError('Please enter a valid phone number with country code (e.g., +1XXXXXXXXXX)');
@@ -71,7 +74,8 @@ function PhoneVerificationForm({ userId, initialPhoneNumber, onVerificationSucce
     
     setIsSubmitting(true);
     setError('');
-    
+
+    // 2) Call the backend endpoint
     fetch(`${API_BASE_URL}/api/send-verification-code`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -105,7 +109,8 @@ function PhoneVerificationForm({ userId, initialPhoneNumber, onVerificationSucce
     
     setIsSubmitting(true);
     setError('');
-    
+
+    // 3) Call the backend to verify
     fetch(`${API_BASE_URL}/api/verify-phone`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -119,7 +124,7 @@ function PhoneVerificationForm({ userId, initialPhoneNumber, onVerificationSucce
       .then(data => {
         setIsSubmitting(false);
         if (data.success) {
-          onVerificationSuccess(phoneInput);
+          onVerificationSuccess(phoneInput); // Let parent component know phone is verified
         } else {
           setError(data.error || 'Verification failed. Please try again.');
         }
@@ -202,8 +207,8 @@ function PhoneVerificationForm({ userId, initialPhoneNumber, onVerificationSucce
 }
 
 /* ========================================
-   🟢 Main ProfilePage Component
-   ======================================== */
+   Main ProfilePage Component
+======================================== */
 function ProfilePage({ user, setUser }) {
   const [firstName, setFirstName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -218,12 +223,11 @@ function ProfilePage({ user, setUser }) {
       // Initialize the firstName from Google token or fallback
       setFirstName(user.given_name || user.name?.split(' ')[0] || '');
       
-      // Fetch the user's profile from backend
+      // 4) Fetch the user’s profile from your backend
       fetch(`${API_BASE_URL}/api/user-profile?userId=${user.sub || user.email}`)
         .then(response => response.json())
         .then(data => {
           if (data.success) {
-            // Update phone details
             setPhoneNumber(data.profile.phone_number || '');
             setIsPhoneVerified(data.profile.phone_verified || false);
 
@@ -248,10 +252,10 @@ function ProfilePage({ user, setUser }) {
     navigate('/');
   };
 
-  // Navigates to the profile page (useful if there's a button for it)
+  // Navigates to the profile page
   const handleProfileClick = () => navigate('/profile');
 
-  // Saves the user's name to the DB via PUT /api/user-profile
+  // Saves the user’s name to the DB
   const saveName = () => {
     setIsSaving(true);
     setSaveSuccess(false);
@@ -297,11 +301,11 @@ function ProfilePage({ user, setUser }) {
           <div className="loading-spinner"></div>
         ) : (
           <div className="profile-content">
-            {/* 🟢 Account Information Section */}
+            {/* Account Information */}
             <div className="profile-section">
               <h2>Account Information</h2>
               
-              {/* Name field (editable) */}
+              {/* Name field */}
               <div className="profile-field">
                 <label>Name:</label>
                 <input
@@ -347,7 +351,7 @@ function ProfilePage({ user, setUser }) {
               )}
             </div>
 
-            {/* 🟢 Phone Verification Section */}
+            {/* Phone Verification Section */}
             <div className="profile-section">
               <h2>Phone Verification</h2>
               {isPhoneVerified ? (
