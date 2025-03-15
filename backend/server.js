@@ -39,21 +39,22 @@ app.use(express.urlencoded({ extended: false }));
 =============================================== */
 app.get('/api/user-profile', async (req, res) => {
   try {
-    const { userId } = req.query;
+    // We now read both userId and email from query params
+    const { userId, email } = req.query;
 
-    // Check if user exists
+    // Check if user already exists
     let userResult = await pool.query(
       'SELECT * FROM users WHERE user_id = $1',
       [userId]
     );
 
-    // If not found => create a blank user row
+    // If not found => create a new row with user_id and email
     if (userResult.rows.length === 0) {
       await pool.query(
-        'INSERT INTO users (user_id) VALUES ($1)',
-        [userId]
+        'INSERT INTO users (user_id, email) VALUES ($1, $2)',
+        [userId, email]
       );
-      // re-fetch the newly created user
+      // Re-fetch the newly created user
       userResult = await pool.query(
         'SELECT * FROM users WHERE user_id = $1',
         [userId]

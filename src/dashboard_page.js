@@ -16,7 +16,7 @@ function DashboardPage({ user, setUser }) {
   // 1) Fetch the user's name from the database
   useEffect(() => {
     if (user) {
-      fetch(`${API_BASE_URL}/api/user-profile?userId=${user.sub || user.email}`)
+      fetch(`${API_BASE_URL}/api/user-profile?userId=${user.sub}&email=${user.email}`)
         .then(response => response.json())
         .then(data => {
           if (data.success && data.profile.first_name) {

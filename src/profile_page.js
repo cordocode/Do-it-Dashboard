@@ -224,8 +224,8 @@ function ProfilePage({ user, setUser }) {
       setFirstName(user.given_name || user.name?.split(' ')[0] || '');
       
       // 4) Fetch the user’s profile from your backend
-      fetch(`${API_BASE_URL}/api/user-profile?userId=${user.sub || user.email}`)
-        .then(response => response.json())
+      fetch(`${API_BASE_URL}/api/user-profile?userId=${user.sub}&email=${user.email}`)
+        .then((res) => res.json())
         .then(data => {
           if (data.success) {
             setPhoneNumber(data.profile.phone_number || '');
