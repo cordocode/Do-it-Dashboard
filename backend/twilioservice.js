@@ -21,7 +21,7 @@ function setupTwilioService(pool) {
   );
   const twilioNumber = process.env.TWILIO_NUMBER;
 
-  // If you use OpenAI to parse incoming SMS commands
+  // Initialize OpenAI service
   const openAIService = setupOpenAIService();
 
   // Helper to generate random 6-digit codes
@@ -66,9 +66,9 @@ function setupTwilioService(pool) {
           [code, userId]
         );
 
-        // Send the SMS
+        // Send the SMS with a friendlier message
         await twilioClient.messages.create({
-          body: `Your verification code is ${code}`,
+          body: `Your Formybuddy verification code is ${code}. Enter this code to connect your phone! 📱✨`,
           from: twilioNumber,
           to: normalizedPhone,
         });
@@ -88,7 +88,7 @@ function setupTwilioService(pool) {
       try {
         const normalizedPhone = normalizePhoneNumber(phoneNumber);
 
-        // Check DB for user’s stored verification code
+        // Check DB for user's stored verification code
         const result = await pool.query(
           'SELECT verification_code FROM users WHERE user_id = $1',
           [userId]
@@ -108,6 +108,19 @@ function setupTwilioService(pool) {
              WHERE user_id = $2`,
             [normalizedPhone, userId]
           );
+
+          // Send welcome message via Twilio after successful verification
+          try {
+            await twilioClient.messages.create({
+              body: "Phone verified! 🎉 You can now manage your tasks via text. Try sending a message like 'Call mom' to add a task or 'Show my tasks' to see your list!",
+              from: twilioNumber,
+              to: normalizedPhone,
+            });
+          } catch (smsError) {
+            console.error('Error sending welcome SMS:', smsError);
+            // Continue with success response even if welcome SMS fails
+          }
+
           res.json({ success: true });
         } else {
           res.status(400).json({ success: false, error: 'Incorrect verification code.' });
@@ -119,72 +132,49 @@ function setupTwilioService(pool) {
     });
 
     // ------------------------------------------------------
-    //  3) (Optional) Twilio webhook for incoming SMS
+    //  3) Twilio webhook for incoming SMS - UPDATED IMPLEMENTATION
     // ------------------------------------------------------
     app.post('/twilio/webhook', async (req, res) => {
       // Twilio sends these fields in the POST
-      const userMessage = req.body.Body;  // user’s text
+      const userMessage = req.body.Body;  // user's text
       const fromNumber = req.body.From;   // e.g. +13035551234
 
-      // E.g. remove spaces or do further normalization
-      const normalizedNumber = fromNumber.replace(/\s+/g, '');
-
       try {
-        // Identify the user by phone
-        const userResult = await pool.query(
-          'SELECT * FROM users WHERE phone_number = $1 AND phone_verified = TRUE',
-          [normalizedNumber]
-        );
-        const user = userResult.rows[0];
-        if (!user) {
-          // Not found => return TwiML
-          return res.send(
-            `<Response><Message>Your number is not linked to any verified account.</Message></Response>`
-          );
-        }
-
-        // If you use OpenAI to interpret commands
-        const intentData = await openAIService.analyzeMessageIntent(userMessage);
-        let responseText = '';
-
-        switch (intentData.intent) {
-          case 'add_task': {
-            if (intentData.task_content) {
-              // Insert a row into boxes
-              await pool.query(
-                'INSERT INTO boxes (user_id, content) VALUES ($1, $2)',
-                [user.user_id, intentData.task_content]
-              );
-              responseText = `Added task: "${intentData.task_content}"`;
-            } else {
-              responseText = `I couldn't figure out what task to add. Try: "Add buy groceries"`;
-            }
-            break;
-          }
-          case 'remove_task': {
-            // You can do logic to remove a user’s box
-            // ...
-            responseText = `Remove logic not shown here. :)
-Try: "Remove task #2" for an example.`;
-            break;
-          }
-          case 'list_tasks': {
-            // Retrieve that user’s boxes, etc.
-            // ...
-            responseText = `List tasks logic not shown here. :)`;
-            break;
-          }
-          default:
-            // If it’s an unrecognized command => maybe let OpenAI handle it
-            responseText = await openAIService.generateUserResponse(intentData);
-            break;
-        }
-
-        // Return TwiML so Twilio can deliver it back to the user
-        res.send(`<Response><Message>${responseText}</Message></Response>`);
+        // Process the SMS using the enhanced OpenAI service
+        const result = await openAIService.processSmsMessage(userMessage, fromNumber);
+        
+        // Generate TwiML response
+        const twimlResponse = `<Response><Message>${result.responseText}</Message></Response>`;
+        res.send(twimlResponse);
       } catch (err) {
         console.error('Error in /twilio/webhook:', err);
-        res.send(`<Response><Message>Something went wrong. Please try again later.</Message></Response>`);
+        res.send(`<Response><Message>Oops! 😅 I hit a snag processing your message. Could you try again in a moment?</Message></Response>`);
+      }
+    });
+
+    // ------------------------------------------------------
+    //  4) Testing route for SMS processing without Twilio
+    // ------------------------------------------------------
+    app.post('/api/test-sms-processing', async (req, res) => {
+      const { message, phoneNumber } = req.body;
+      
+      if (!message || !phoneNumber) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Both message and phoneNumber are required' 
+        });
+      }
+
+      try {
+        // Process the SMS using OpenAI service
+        const result = await openAIService.processSmsMessage(message, phoneNumber);
+        res.json(result);
+      } catch (err) {
+        console.error('Error in test-sms-processing:', err);
+        res.status(500).json({ 
+          success: false, 
+          error: err.message 
+        });
       }
     });
   }
