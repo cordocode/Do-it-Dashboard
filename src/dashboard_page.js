@@ -12,7 +12,9 @@ function DashboardPage({ user, setUser }) {
   const [boxes, setBoxes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingBoxIds, setEditingBoxIds] = useState(new Set());
+  const [deletedBoxIds, setDeletedBoxIds] = useState(new Set()); // Track deleted boxes
   const isFirstRender = useRef(true);
+  const lastPollTime = useRef(0);
   const navigate = useNavigate();
 
   // 1) Fetch the user's name from the database
@@ -40,11 +42,13 @@ function DashboardPage({ user, setUser }) {
         .then(response => response.json())
         .then(data => {
           if (data.success) {
+            lastPollTime.current = Date.now();
+            
             setBoxes(prevBoxes => {
-              // If this is the first render, just use the server data
+              // If this is the first render, just use the server data but filter out deleted boxes
               if (isFirstRender.current) {
                 isFirstRender.current = false;
-                return data.boxes;
+                return data.boxes.filter(box => !deletedBoxIds.has(box.id));
               }
               
               // Find all locally created or edited boxes
@@ -55,17 +59,19 @@ function DashboardPage({ user, setUser }) {
                 editingBoxIds.has(box.id)
               );
               
-              // Create a map of IDs for easy lookup
+              // Create maps for lookup
               const serverBoxMap = new Map(data.boxes.map(box => [box.id, box]));
               const unsavedBoxMap = new Map(unsavedBoxes.map(box => [box.id, box]));
               
               // Merge server data with unsaved/editing tasks
-              // Priority: local edits > server data > local unsaved
               const mergedBoxes = [];
               
-              // First add all server boxes
+              // First add server boxes (except deleted ones)
               for (const serverBox of data.boxes) {
-                // If we're editing this box, keep our local version
+                // Skip deleted boxes
+                if (deletedBoxIds.has(serverBox.id)) continue;
+                
+                // If box is being edited, preserve local version
                 if (editingBoxIds.has(serverBox.id)) {
                   mergedBoxes.push(unsavedBoxMap.get(serverBox.id));
                 } else {
@@ -73,9 +79,9 @@ function DashboardPage({ user, setUser }) {
                 }
               }
               
-              // Then add any unsaved temporary boxes not from server
+              // Add unsaved temporary boxes
               for (const unsavedBox of unsavedBoxes) {
-                if (!serverBoxMap.has(unsavedBox.id)) {
+                if (!serverBoxMap.has(unsavedBox.id) && !deletedBoxIds.has(unsavedBox.id)) {
                   mergedBoxes.push(unsavedBox);
                 }
               }
@@ -95,14 +101,14 @@ function DashboardPage({ user, setUser }) {
     fetchBoxes();
     const intervalId = setInterval(fetchBoxes, 5000);
     return () => clearInterval(intervalId);
-  }, [user, editingBoxIds]);
+  }, [user, editingBoxIds, deletedBoxIds]); // Add deletedBoxIds as dependency
 
-  // 3) Create a new box (unsaved) with a stable temporary ID
+  // 3) Create a new box with a stable temporary ID
   const addBox = () => {
     const tempId = `temp-${Date.now()}`;
     setBoxes(prevBoxes => [...prevBoxes, { id: tempId, content: "" }]);
     
-    // Automatically mark new box as being edited
+    // Mark as being edited
     setEditingBoxIds(prev => {
       const newSet = new Set(prev);
       newSet.add(tempId);
@@ -110,19 +116,22 @@ function DashboardPage({ user, setUser }) {
     });
   };
 
-  // 4) Delete a box; if unsaved (temporary), remove from state only. Otherwise, call the API.
+  // 4) Delete a box - improved to handle immediate UI feedback
   const deleteBox = (boxId) => {
-    // Remove from editing state if it was being edited
+    // Track this as deleted to prevent reappearing during polling
+    setDeletedBoxIds(prev => new Set([...prev, boxId]));
+    
+    // Remove from editing state
     setEditingBoxIds(prev => {
       const newSet = new Set(prev);
       newSet.delete(boxId);
       return newSet;
     });
     
-    // Remove from boxes state
+    // Remove from UI immediately
     setBoxes(prevBoxes => prevBoxes.filter(b => b.id !== boxId));
     
-    // Only call API if the box has a server ID (not temporary)
+    // Only call API for non-temporary boxes
     if (boxId && !(typeof boxId === "string" && boxId.startsWith("temp-"))) {
       fetch(`${API_BASE_URL}/api/boxes/${boxId}`, {
         method: 'DELETE',
@@ -137,20 +146,28 @@ function DashboardPage({ user, setUser }) {
     }
   };
 
-  // 5) Handler for when a box is saved; update using functional update.
+  // 5) Handler for when a box is saved
   const handleBoxSave = (oldId, newBox) => {
-    // Update the box in our state
+    // If temporary ID became a real ID, update tracking
+    if (typeof oldId === "string" && oldId.startsWith("temp-") && newBox.id !== oldId) {
+      setDeletedBoxIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(oldId);
+        return newSet;
+      });
+    }
+    
+    // Update box in state
     setBoxes(prevBoxes => prevBoxes.map(box =>
       box.id === oldId ? newBox : box
     ));
     
-    // Remove old ID from editing state if it was there
+    // Update editing state
     if (oldId && editingBoxIds.has(oldId)) {
       setEditingBoxIds(prev => {
         const newSet = new Set(prev);
         newSet.delete(oldId);
-        // If the box was previously being edited, continue tracking the new ID
-        // This ensures we don't lose edit state when a temp box gets a server ID
+        // If box was being edited, continue tracking with new ID
         if (newBox && newBox.id) {
           newSet.add(newBox.id);
         }
@@ -208,7 +225,7 @@ function DashboardPage({ user, setUser }) {
           ) : (
             boxes.map(box => (
               <Box
-                key={box.id} // Use the stable id (either a saved id or a temporary one)
+                key={box.id}
                 id={box.id}
                 user={user}
                 onDelete={deleteBox}
