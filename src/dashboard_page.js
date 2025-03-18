@@ -194,7 +194,7 @@ function DashboardPage({ user, setUser }) {
         />
       </div>
       <div className="content-container">
-        <h1>Let's get 'er done, {displayName}</h1>
+        <h1>{displayName}'s dashboard</h1>
         <div className="action-container">
           <button onClick={addBox}>Add New Task</button>
         </div>

@@ -2,36 +2,36 @@
    🟢 GLOBAL VARIABLES
    ======================================== */
 :root {
-  /* Color scheme refinement */
-  --background-color: #f0f0f2; /* Light gray background */
-  --surface-color: #f8f8fa; /* Slightly lighter shade for text boxes */
-  --surface-hover: #ffffff;
+  /* Terminal-inspired color scheme */
+  --background-color: #121212; /* Dark background like terminal */
+  --surface-color: #1e1e1e; /* Slightly lighter shade for elements */
+  --surface-hover: #2a2a2a;
   
-  /* Maintain burnt orange color palette */
-  --primary-color: #d97e4a;
-  --primary-light: #e8b296;
-  --primary-dark: #b15b2e;
+  /* Primary color changed to terminal green */
+  --primary-color: #E6DFC0;
+  --primary-light: #EFEBD0; /* Slightly lighter */
+  --primary-dark: #DCCFB0; /* Slightly darker */
   
-  /* Text colors - off-white for better contrast */
-  --text-color: #2d2d33;
-  --text-secondary: #4a4a52;
-  --text-disabled: #8e8e96;
+  /* Text colors - terminal white & grays */
+  --text-color: #E6DFC0;
+  --text-secondary: #a1a1aa;
+  --text-disabled: #71717a;
   
-  /* Feedback colors */
-  --error-color: #f56565;
-  --success-color: #48bb78;
-  --warning-color: #ed8936;
+  /* Feedback colors - terminal standards */
+  --error-color: #f87171;
+  --success-color: #4ade80;
+  --warning-color: #fbbf24;
   
   /* Border and divider */
-  --border-color: #dedee3;
-  --divider-color: #eaeaef;
+  --border-color: #333333;
+  --divider-color: #262626;
   
-  /* Shadow */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08), 0 4px 6px rgba(0, 0, 0, 0.05);
+  /* Shadow - darker for terminal theme */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3), 0 4px 6px rgba(0, 0, 0, 0.2);
   
-  /* Typography - changed to Courier */
+  /* Typography - unchanged */
   --font-family: 'Courier New', Courier, monospace;
   --font-size-xs: 12px;
   --font-size-sm: 14px;
@@ -40,7 +40,7 @@
   --font-size-xl: 20px;
   --font-size-2xl: 24px;
   
-  /* Layout */
+  /* Layout - unchanged */
   --spacing-1: 4px;
   --spacing-2: 8px;
   --spacing-3: 12px;
@@ -52,7 +52,7 @@
   --border-radius-lg: 8px;
   --border-radius-full: 9999px;
   
-  /* Animation */
+  /* Animation - unchanged */
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s ease;
   --transition-slow: 0.35s ease;
@@ -83,7 +83,7 @@ h1, h2, h3, h4, h5, h6 {
 h1 {
   font-size: var(--font-size-2xl);
   margin-bottom: var(--spacing-6);
-  color: #000000; /* Changed heading color to black */
+  color: var(--text-color); /* Changed to white */
   letter-spacing: -0.5px;
 }
 
@@ -100,7 +100,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff; /* Ensuring all buttons have white text by default */
+  color: var(--background-color); /* Black text on buttons */
   background-color: var(--primary-color);
 }
 
@@ -165,7 +165,7 @@ button:disabled {
 .google-login-error {
   padding: var(--spacing-3) var(--spacing-4);
   color: var(--error-color);
-  background: rgba(245, 101, 101, 0.1);
+  background: rgba(248, 113, 113, 0.1);
   border-radius: var(--border-radius-md);
   font-family: var(--font-family);
   font-size: var(--font-size-sm);
@@ -286,7 +286,7 @@ button:disabled {
   font-size: var(--font-size-sm);
   font-weight: 500;
   transition: all var(--transition-fast);
-  color: #ffffff; /* Ensure text on buttons is white for contrast */
+  color: var(--background-color);
 }
 
 /* FIX: Keep save button color consistent */
@@ -311,7 +311,7 @@ button:disabled {
 }
 
 .delete-button:hover {
-  background-color: rgba(245, 101, 101, 0.1);
+  background-color: rgba(248, 113, 113, 0.1);
   color: var(--error-color);
   border-color: var(--error-color);
 }
@@ -352,7 +352,7 @@ button:disabled {
   border-radius: var(--border-radius-full);
   border: none;
   background: var(--primary-color);
-  color: var(--text-color);
+  color: var(--background-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -420,7 +420,7 @@ button:disabled {
 }
 
 .logout-button:hover {
-  background-color: rgba(245, 101, 101, 0.1);
+  background-color: rgba(248, 113, 113, 0.1);
 }
 
 .profile-menu-item {
@@ -487,7 +487,7 @@ button:disabled {
 
 .action-container button {
   background-color: var(--primary-color);
-  color: #ffffff; /* Explicitly setting white text for Add New Task button */
+  color: var(--background-color);
   padding: var(--spacing-2) var(--spacing-4);
   font-weight: 500;
   font-size: var(--font-size-sm);
@@ -515,7 +515,7 @@ button:disabled {
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid rgba(217, 126, 74, 0.2);
+  border: 3px solid rgba(74, 222, 128, 0.2);
   border-radius: 50%;
   border-top-color: var(--primary-color);
   animation: spin 1s ease-in-out infinite;
@@ -553,7 +553,7 @@ button:disabled {
     margin-top: 0;
     margin-bottom: var(--spacing-4);
     padding-bottom: var(--spacing-3);
-    border-bottom: 1px solid var(--divider-color);
+    border-bottom: 1px solid var(--border-color);
   }
   
   .profile-field {
@@ -583,7 +583,7 @@ button:disabled {
   .profile-field input:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(217, 126, 74, 0.2);
+    box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.2);
   }
   
   .profile-field span {
@@ -609,7 +609,7 @@ button:disabled {
     margin-top: var(--spacing-4);
     padding: var(--spacing-2) var(--spacing-4);
     background-color: var(--primary-color);
-    color: #ffffff;
+    color: var(--background-color);
     border-radius: var(--border-radius-md);
     position: relative;
     overflow: hidden;
@@ -636,7 +636,7 @@ button:disabled {
     margin-top: var(--spacing-3);
     padding: var(--spacing-2) var(--spacing-3);
     border-radius: var(--border-radius-md);
-    background-color: rgba(72, 187, 120, 0.1);
+    background-color: rgba(74, 222, 128, 0.1);
     animation: fadeInOut 3s ease-in-out forwards;
   }
   
@@ -659,7 +659,7 @@ button:disabled {
     display: flex;
     align-items: center;
     gap: var(--spacing-2);
-    color: var(--success-color);
+    color: var (--success-color);
     margin-bottom: var(--spacing-3);
   }
   
@@ -686,7 +686,7 @@ button:disabled {
   }
   
   .secondary-button:hover {
-    background-color: rgba(217, 126, 74, 0.1);
+    background-color: rgba(74, 222, 128, 0.1);
   }
   
   .phone-verification-form {
@@ -751,6 +751,140 @@ button:disabled {
     color: var(--error-color);
     margin-bottom: var(--spacing-3);
     padding: var(--spacing-2);
-    background-color: rgba(245, 101, 101, 0.1);
+    background-color: rgba(248, 113, 113, 0.1);
     border-radius: var(--border-radius-sm);
   }
+
+/* Ethereal Login Page Styling */
+.ethereal-login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100%;
+  background: linear-gradient(135deg, #080808 0%, #121212 100%);
+  color: #E6DFC0;
+  opacity: 0;
+  transition: opacity 1.5s ease-in;
+  overflow: hidden;
+  position: relative;
+}
+
+.ethereal-login-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.7) 70%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.ethereal-login-container.visible {
+  opacity: 1;
+}
+
+.login-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 600px;
+  padding: 2rem;
+  z-index: 2;
+  text-align: center;
+}
+
+.typewriter-container {
+  height: 180px; /* Increased height to accommodate text comfortably */
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 40px;
+}
+
+.typewriter-text {
+  font-family: 'Courier New', monospace;
+  font-size: 1.5rem;
+  letter-spacing: 0.05em;
+  line-height: 1.8;
+  color:#E6DFC0;
+  text-align: center;
+  position: relative;
+}
+
+.cursor {
+  display: inline-block;
+  width: 10px;
+  height: 1.5em;
+  background-color: #E6DFC0;
+  margin-left: 2px;
+  animation: blink 0.85s step-end infinite;
+  vertical-align: middle;
+}
+
+@keyframes blink {
+  from, to { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.login-button-container {
+  margin-top: 40px;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.login-button-container:hover {
+  transform: scale(1.02);
+}
+
+/* Override Google button styles for better integration */
+.google-login-container button,
+.login-button-container button {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  color: #121212 !important;
+  border: none !important;
+  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.1) !important;
+  transition: all 0.3s ease !important;
+}
+
+.google-login-container button:hover,
+.login-button-container button:hover {
+  background-color: rgba(255, 255, 255, 1) !important;
+  box-shadow: 0 4px 25px rgba(255, 255, 255, 0.2) !important;
+}
+
+.google-login-error {
+  color: rgba(255, 120, 120, 0.9);
+  margin: 1rem 0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+}
+
+/* Additional ambient effects */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+.login-content {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Ensure the page is responsive */
+@media (max-width: 768px) {
+  .typewriter-text {
+    font-size: 1.2rem;
+  }
+  
+  .typewriter-container {
+    height: 220px; /* Even more height on mobile */
+    padding: 0 20px;
+  }
+}

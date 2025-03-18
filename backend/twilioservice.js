@@ -68,7 +68,7 @@ function setupTwilioService(pool) {
 
         // Send the SMS with a friendlier message
         await twilioClient.messages.create({
-          body: `Your Formybuddy verification code is ${code}. Enter this code to connect your phone! 📱✨`,
+          body: `Hey! Your code is ${code}. Enter this code to connect your phone! 📱✨`,
           from: twilioNumber,
           to: normalizedPhone,
         });
@@ -112,7 +112,7 @@ function setupTwilioService(pool) {
           // Send welcome message via Twilio after successful verification
           try {
             await twilioClient.messages.create({
-              body: "Phone verified! 🎉 You can now manage your tasks via text. Try sending a message like 'Call mom' to add a task or 'Show my tasks' to see your list!",
+              body: "Phone verified! Text this number to manage your tasks on the go. Add me to your contacts, then simply message in natural language to add, remove, or update tasks whenever you need to.",
               from: twilioNumber,
               to: normalizedPhone,
             });
