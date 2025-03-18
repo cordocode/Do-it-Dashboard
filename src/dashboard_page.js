@@ -12,12 +12,19 @@ function DashboardPage({ user, setUser }) {
   const [boxes, setBoxes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingBoxIds, setEditingBoxIds] = useState(new Set());
-  const [deletedBoxIds, setDeletedBoxIds] = useState(new Set()); // Track deleted boxes
+  const [deletedBoxIds, setDeletedBoxIds] = useState(new Set());
   const isFirstRender = useRef(true);
-  const lastPollTime = useRef(0);
+  const currentBoxesRef = useRef(new Map());
   const navigate = useNavigate();
 
-  // 1) Fetch the user's name from the database
+  // Keep a reference to the current boxes for comparison
+  useEffect(() => {
+    currentBoxesRef.current = new Map(
+      boxes.map(box => [box.id, box])
+    );
+  }, [boxes]);
+
+  // Fetch user's name
   useEffect(() => {
     if (user) {
       fetch(`${API_BASE_URL}/api/user-profile?userId=${user.sub}&email=${user.email}`)
@@ -33,7 +40,7 @@ function DashboardPage({ user, setUser }) {
     }
   }, [user]);
 
-  // 2) Poll for tasks every 5 seconds and merge with unsaved tasks
+  // Poll for tasks
   useEffect(() => {
     if (!user) return;
     
@@ -42,51 +49,43 @@ function DashboardPage({ user, setUser }) {
         .then(response => response.json())
         .then(data => {
           if (data.success) {
-            lastPollTime.current = Date.now();
-            
             setBoxes(prevBoxes => {
-              // If this is the first render, just use the server data but filter out deleted boxes
               if (isFirstRender.current) {
                 isFirstRender.current = false;
                 return data.boxes.filter(box => !deletedBoxIds.has(box.id));
               }
               
-              // Find all locally created or edited boxes
-              const unsavedBoxes = prevBoxes.filter(box => 
-                // Keep temporary boxes (not yet saved to server)
-                (typeof box.id === "string" && box.id.startsWith("temp-")) ||
-                // Keep boxes currently being edited
-                editingBoxIds.has(box.id)
-              );
+              // Create new boxes array
+              const newBoxes = [];
+              const prevBoxMap = new Map(prevBoxes.map(box => [box.id, box]));
               
-              // Create maps for lookup
-              const serverBoxMap = new Map(data.boxes.map(box => [box.id, box]));
-              const unsavedBoxMap = new Map(unsavedBoxes.map(box => [box.id, box]));
-              
-              // Merge server data with unsaved/editing tasks
-              const mergedBoxes = [];
-              
-              // First add server boxes (except deleted ones)
+              // Process server boxes first
               for (const serverBox of data.boxes) {
                 // Skip deleted boxes
                 if (deletedBoxIds.has(serverBox.id)) continue;
                 
-                // If box is being edited, preserve local version
-                if (editingBoxIds.has(serverBox.id)) {
-                  mergedBoxes.push(unsavedBoxMap.get(serverBox.id));
-                } else {
-                  mergedBoxes.push(serverBox);
+                const prevBox = prevBoxMap.get(serverBox.id);
+                const isBeingEdited = editingBoxIds.has(serverBox.id);
+                
+                // If this box is being edited locally, keep local version
+                if (isBeingEdited && prevBox) {
+                  newBoxes.push(prevBox);
+                }
+                // Otherwise use server version (handles updates from other sources)
+                else {
+                  newBoxes.push(serverBox);
                 }
               }
               
-              // Add unsaved temporary boxes
-              for (const unsavedBox of unsavedBoxes) {
-                if (!serverBoxMap.has(unsavedBox.id) && !deletedBoxIds.has(unsavedBox.id)) {
-                  mergedBoxes.push(unsavedBox);
+              // Add local temporary boxes that don't exist on server yet
+              for (const box of prevBoxes) {
+                // Add temporary boxes not yet saved
+                if (typeof box.id === "string" && box.id.startsWith("temp-")) {
+                  newBoxes.push(box);
                 }
               }
               
-              return mergedBoxes;
+              return newBoxes;
             });
           }
           setLoading(false);
@@ -97,18 +96,16 @@ function DashboardPage({ user, setUser }) {
         });
     };
 
-    // Initial fetch and set polling interval
     fetchBoxes();
     const intervalId = setInterval(fetchBoxes, 5000);
     return () => clearInterval(intervalId);
-  }, [user, editingBoxIds, deletedBoxIds]); // Add deletedBoxIds as dependency
+  }, [user, editingBoxIds, deletedBoxIds]);
 
-  // 3) Create a new box with a stable temporary ID
+  // Create new box
   const addBox = () => {
     const tempId = `temp-${Date.now()}`;
     setBoxes(prevBoxes => [...prevBoxes, { id: tempId, content: "" }]);
     
-    // Mark as being edited
     setEditingBoxIds(prev => {
       const newSet = new Set(prev);
       newSet.add(tempId);
@@ -116,9 +113,9 @@ function DashboardPage({ user, setUser }) {
     });
   };
 
-  // 4) Delete a box - improved to handle immediate UI feedback
+  // Delete box
   const deleteBox = (boxId) => {
-    // Track this as deleted to prevent reappearing during polling
+    // Mark as deleted to prevent reappearing
     setDeletedBoxIds(prev => new Set([...prev, boxId]));
     
     // Remove from editing state
@@ -131,24 +128,18 @@ function DashboardPage({ user, setUser }) {
     // Remove from UI immediately
     setBoxes(prevBoxes => prevBoxes.filter(b => b.id !== boxId));
     
-    // Only call API for non-temporary boxes
+    // Call API for non-temp boxes
     if (boxId && !(typeof boxId === "string" && boxId.startsWith("temp-"))) {
       fetch(`${API_BASE_URL}/api/boxes/${boxId}`, {
         method: 'DELETE',
       })
         .then(response => response.json())
-        .then(data => {
-          if (!data.success) {
-            console.error('Failed to delete box from server');
-          }
-        })
         .catch(err => console.error(err));
     }
   };
 
-  // 5) Handler for when a box is saved
+  // Handle box save
   const handleBoxSave = (oldId, newBox) => {
-    // If temporary ID became a real ID, update tracking
     if (typeof oldId === "string" && oldId.startsWith("temp-") && newBox.id !== oldId) {
       setDeletedBoxIds(prev => {
         const newSet = new Set(prev);
@@ -157,26 +148,19 @@ function DashboardPage({ user, setUser }) {
       });
     }
     
-    // Update box in state
-    setBoxes(prevBoxes => prevBoxes.map(box =>
+    setBoxes(prevBoxes => prevBoxes.map(box => 
       box.id === oldId ? newBox : box
     ));
     
     // Update editing state
-    if (oldId && editingBoxIds.has(oldId)) {
-      setEditingBoxIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(oldId);
-        // If box was being edited, continue tracking with new ID
-        if (newBox && newBox.id) {
-          newSet.add(newBox.id);
-        }
-        return newSet;
-      });
-    }
+    setEditingBoxIds(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(oldId);
+      return newSet;
+    });
   };
 
-  // 6) Track when a box is being edited
+  // Track editing state
   const handleBoxEdit = (boxId, isEditing) => {
     setEditingBoxIds(prev => {
       const newSet = new Set(prev);
@@ -189,14 +173,14 @@ function DashboardPage({ user, setUser }) {
     });
   };
 
-  // 7) Standard logout
+  // Logout
   const handleLogout = () => {
     localStorage.removeItem('user');
     setUser(null);
     navigate('/');
   };
 
-  // 8) Navigate to profile page
+  // Profile navigation
   const handleProfileClick = () => {
     navigate('/profile');
   };
