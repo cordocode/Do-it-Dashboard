@@ -55,7 +55,7 @@ function StatusIndicator({ status }) {
 /* ========================================
    🟢 BOX COMPONENT
    ======================================== */
-export function Box({ id, user, onDelete, onSave, onEditStateChange, initialContent = "" }) {
+export function Box({ id, user, onDelete, onSave, initialContent = "" }) {
   const [text, setText] = useState(initialContent);
   const [savedText, setSavedText] = useState(initialContent);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -89,39 +89,17 @@ export function Box({ id, user, onDelete, onSave, onEditStateChange, initialCont
     adjustTextareaHeight();
   };
 
-  // Handlers for edit state tracking
-  const handleFocus = () => {
-    if (onEditStateChange) {
-      onEditStateChange(true);
-    }
-  };
-
-  const handleBlur = () => {
-    if (onEditStateChange) {
-      onEditStateChange(false);
-    }
-  };
-
   const handleSave = () => {
-    // Check if this is a temporary ID
-    const isTemporary = typeof id === 'string' && id.startsWith('temp-');
-    
-    // For temporary IDs, always use POST (create new)
-    // For real IDs, use PUT (update existing)
-    const method = isTemporary ? 'POST' : (id ? 'PUT' : 'POST');
-    const url = isTemporary || !id 
-      ? `${API_BASE_URL}/api/boxes` 
-      : `${API_BASE_URL}/api/boxes/${id}`;
-    
+    const url = id 
+      ? `${API_BASE_URL}/api/boxes/${id}` 
+      : `${API_BASE_URL}/api/boxes`;
+    const method = id ? 'PUT' : 'POST';
     const userId = user?.sub || user?.email;
 
-    // Don't include temporary IDs in the payload
     fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        // Only include id for PUT requests with real IDs
-        ...(method === 'PUT' && !isTemporary ? { id } : {}),
         userId,
         content: text
       }),
@@ -153,8 +131,6 @@ export function Box({ id, user, onDelete, onSave, onEditStateChange, initialCont
           className="box-textarea"
           value={text}
           onChange={handleTextChange}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
           placeholder="Write your task here..."
         />
       </div>

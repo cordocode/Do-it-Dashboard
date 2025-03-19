@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, ProfileButton } from "./components";
 import { useNavigate } from "react-router-dom";
 import './components.css';
@@ -8,23 +8,12 @@ const API_BASE_URL = process.env.NODE_ENV === 'development'
   : 'https://backend.formybuddy.com';
 
 function DashboardPage({ user, setUser }) {
-  const [displayName, setDisplayName] = useState('');
+  const [displayName, setDisplayName] = useState(''); // Name from the DB
   const [boxes, setBoxes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editingBoxIds, setEditingBoxIds] = useState(new Set());
-  const [deletedBoxIds, setDeletedBoxIds] = useState(new Set());
-  const isFirstRender = useRef(true);
-  const currentBoxesRef = useRef(new Map());
   const navigate = useNavigate();
 
-  // Keep a reference to the current boxes for comparison
-  useEffect(() => {
-    currentBoxesRef.current = new Map(
-      boxes.map(box => [box.id, box])
-    );
-  }, [boxes]);
-
-  // Fetch user's name
+  // 1) Fetch the user's name from the database
   useEffect(() => {
     if (user) {
       fetch(`${API_BASE_URL}/api/user-profile?userId=${user.sub}&email=${user.email}`)
@@ -33,6 +22,7 @@ function DashboardPage({ user, setUser }) {
           if (data.success && data.profile.first_name) {
             setDisplayName(data.profile.first_name);
           } else {
+            // Fallback if DB has no name
             setDisplayName('friend');
           }
         })
@@ -40,53 +30,15 @@ function DashboardPage({ user, setUser }) {
     }
   }, [user]);
 
-  // Poll for tasks
+  // 2) Fetch existing boxes from the backend for this user
   useEffect(() => {
-    if (!user) return;
-    
-    const fetchBoxes = () => {
+    if (user) {
+      setLoading(true);
       fetch(`${API_BASE_URL}/api/boxes?userId=${user.sub || user.email}`)
         .then(response => response.json())
         .then(data => {
           if (data.success) {
-            setBoxes(prevBoxes => {
-              if (isFirstRender.current) {
-                isFirstRender.current = false;
-                return data.boxes.filter(box => !deletedBoxIds.has(box.id));
-              }
-              
-              // Create new boxes array
-              const newBoxes = [];
-              const prevBoxMap = new Map(prevBoxes.map(box => [box.id, box]));
-              
-              // Process server boxes first
-              for (const serverBox of data.boxes) {
-                // Skip deleted boxes
-                if (deletedBoxIds.has(serverBox.id)) continue;
-                
-                const prevBox = prevBoxMap.get(serverBox.id);
-                const isBeingEdited = editingBoxIds.has(serverBox.id);
-                
-                // If this box is being edited locally, keep local version
-                if (isBeingEdited && prevBox) {
-                  newBoxes.push(prevBox);
-                }
-                // Otherwise use server version (handles updates from other sources)
-                else {
-                  newBoxes.push(serverBox);
-                }
-              }
-              
-              // Add local temporary boxes that don't exist on server yet
-              for (const box of prevBoxes) {
-                // Add temporary boxes not yet saved
-                if (typeof box.id === "string" && box.id.startsWith("temp-")) {
-                  newBoxes.push(box);
-                }
-              }
-              
-              return newBoxes;
-            });
+            setBoxes(data.boxes);
           }
           setLoading(false);
         })
@@ -94,93 +46,49 @@ function DashboardPage({ user, setUser }) {
           console.error('Error fetching boxes:', err);
           setLoading(false);
         });
-    };
+    }
+  }, [user]);
 
-    fetchBoxes();
-    const intervalId = setInterval(fetchBoxes, 5000);
-    return () => clearInterval(intervalId);
-  }, [user, editingBoxIds, deletedBoxIds]);
-
-  // Create new box
+  // 3) Create a new box in the database (empty content)
   const addBox = () => {
-    const tempId = `temp-${Date.now()}`;
-    setBoxes(prevBoxes => [...prevBoxes, { id: tempId, content: "" }]);
-    
-    setEditingBoxIds(prev => {
-      const newSet = new Set(prev);
-      newSet.add(tempId);
-      return newSet;
-    });
+    setBoxes([...boxes, { id: null, content: "" }]);
   };
 
-  // Delete box
+  // 4) Delete a box in the database
   const deleteBox = (boxId) => {
-    // Mark as deleted to prevent reappearing
-    setDeletedBoxIds(prev => new Set([...prev, boxId]));
+    // Remove from local state first
+    setBoxes(boxes.filter(b => b.id !== boxId));
     
-    // Remove from editing state
-    setEditingBoxIds(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(boxId);
-      return newSet;
-    });
-    
-    // Remove from UI immediately
-    setBoxes(prevBoxes => prevBoxes.filter(b => b.id !== boxId));
-    
-    // Call API for non-temp boxes
-    if (boxId && !(typeof boxId === "string" && boxId.startsWith("temp-"))) {
+    // Only call API if the box was saved (has an ID)
+    if (boxId) {
       fetch(`${API_BASE_URL}/api/boxes/${boxId}`, {
         method: 'DELETE',
       })
         .then(response => response.json())
+        .then(data => {
+          if (!data.success) {
+            console.error('Failed to delete box from server');
+          }
+        })
         .catch(err => console.error(err));
     }
   };
 
-  // Handle box save
+  // 5) Handler for when a box is saved
   const handleBoxSave = (oldId, newBox) => {
-    if (typeof oldId === "string" && oldId.startsWith("temp-") && newBox.id !== oldId) {
-      setDeletedBoxIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(oldId);
-        return newSet;
-      });
-    }
-    
-    setBoxes(prevBoxes => prevBoxes.map(box => 
-      box.id === oldId ? newBox : box
+    setBoxes(boxes.map(box => 
+      (box.id === oldId || (!box.id && !oldId)) ? newBox : box
     ));
-    
-    // Update editing state
-    setEditingBoxIds(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(oldId);
-      return newSet;
-    });
   };
 
-  // Track editing state
-  const handleBoxEdit = (boxId, isEditing) => {
-    setEditingBoxIds(prev => {
-      const newSet = new Set(prev);
-      if (isEditing) {
-        newSet.add(boxId);
-      } else {
-        newSet.delete(boxId);
-      }
-      return newSet;
-    });
-  };
-
-  // Logout
+  // 6) Standard logout
   const handleLogout = () => {
     localStorage.removeItem('user');
     setUser(null);
     navigate('/');
   };
 
-  // Profile navigation
+  // 7) Navigate to profile page
   const handleProfileClick = () => {
     navigate('/profile');
   };
@@ -194,7 +102,7 @@ function DashboardPage({ user, setUser }) {
         />
       </div>
       <div className="content-container">
-        <h1>{displayName}'s dashboard</h1>
+        <h1>Let's get 'er done, {displayName}</h1>
         <div className="action-container">
           <button onClick={addBox}>Add New Task</button>
         </div>
@@ -209,12 +117,11 @@ function DashboardPage({ user, setUser }) {
           ) : (
             boxes.map(box => (
               <Box
-                key={box.id}
+                key={box.id || Math.random()} // Temporary key for unsaved boxes
                 id={box.id}
                 user={user}
                 onDelete={deleteBox}
                 onSave={handleBoxSave}
-                onEditStateChange={(isEditing) => handleBoxEdit(box.id, isEditing)}
                 initialContent={box.content}
               />
             ))
