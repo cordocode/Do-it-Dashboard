@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-d
 import LoginPage from './login_page';
 import DashboardPage from './dashboard_page';
 import ProfilePage from './profile_page';
-import './components.css';
 
 function NavigatePages() {
   const [user, setUser] = useState(null);

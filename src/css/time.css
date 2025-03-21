@@ -1,0 +1,406 @@
+/* ========================================
+   🟢 TIME FEATURE STYLES
+   ======================================== */
+
+/* Box footer layout */
+.box-footer {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-3);
+}
+
+/* Time area and controls */
+.box-time-area {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  position: relative;
+}
+
+/* Time toggle button */
+.time-toggle-button {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  background-color: var(--surface-color);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  border-radius: var(--border-radius-md);
+  transition: all var(--transition-fast);
+}
+
+.time-toggle-button:hover {
+  background-color: var(--surface-hover);
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+.time-toggle-button svg {
+  opacity: 0.8;
+}
+
+/* Modal backdrop overlay - now using extremely high z-index */
+.time-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 999999;
+  animation: fadeIn var(--transition-fast);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Time selector modal - Added explicit padding */
+.time-selector {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  width: 380px;
+  max-width: 90vw;
+  box-shadow: var(--shadow-lg);
+  z-index: 1000000;
+  animation: popIn var(--transition-normal);
+  box-sizing: border-box; /* Add this to ensure proper sizing */
+  overflow: hidden; /* Prevent content from spilling out */
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Time selector header */
+.time-selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-4) var(--spacing-5);
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--surface-hover);
+  border-top-left-radius: var(--border-radius-lg);
+  border-top-right-radius: var(--border-radius-lg);
+}
+
+.time-selector-header h4 {
+  margin: 0;
+  font-size: var(--font-size-md);
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+.time-close-button {
+  background: transparent;
+  color: var(--text-secondary);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-lg);
+  padding: 0;
+  margin: 0;
+  border-radius: var(--border-radius-full);
+  transition: all var(--transition-fast);
+}
+
+.time-close-button:hover {
+  color: var(--text-color);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Time selector body */
+.time-selector-body {
+  padding: var(--spacing-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+  box-sizing: border-box;
+}
+
+/* Horizontal radio button styles */
+.time-type-selector-horizontal {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  padding: 0 0 var(--spacing-4) 0;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--spacing-4);
+}
+
+.time-type-selector-horizontal label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  cursor: pointer;
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--border-radius-md);
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+  flex: 1;
+  text-align: center;
+}
+
+.time-type-selector-horizontal label:hover {
+  background-color: var(--surface-hover);
+  border-color: var(--border-color);
+}
+
+.time-type-selector-horizontal label.selected {
+  background-color: rgba(230, 223, 192, 0.1);
+  border-color: var(--primary-color);
+}
+
+.time-type-selector-horizontal input[type="radio"] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-color);
+  border-radius: 50%;
+  margin: 0;
+  position: relative;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.time-type-selector-horizontal input[type="radio"]:checked {
+  border-color: var(--primary-color);
+}
+
+.time-type-selector-horizontal input[type="radio"]:checked::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+}
+
+.time-type-selector-horizontal span {
+  color: var(--text-color);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+/* Text input for natural language time entry - Fixed to stay inside container */
+.time-text-input {
+  width: 100%;
+  padding: var(--spacing-3);
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  color: var(--text-color);
+  font-family: var(--font-family);
+  font-size: var(--font-size-md);
+  transition: all var(--transition-fast);
+  box-sizing: border-box; /* Critical - ensures padding doesn't expand beyond width */
+  max-width: 100%; /* Ensure it doesn't stretch beyond container */
+}
+
+.time-text-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 1px var(--primary-color);
+}
+
+.time-text-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.time-text-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.7;
+  font-size: var(--font-size-sm);
+}
+
+/* Time input container - Fixed to stay inside modal */
+.time-input-container {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  max-width: 100%;
+}
+
+/* Modal actions */
+.time-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4) var(--spacing-5);
+  border-top: 1px solid var(--border-color);
+  background-color: var(--surface-hover);
+  border-bottom-left-radius: var(--border-radius-lg);
+  border-bottom-right-radius: var(--border-radius-lg);
+}
+
+.time-cancel-button, 
+.time-save-button {
+  padding: var(--spacing-2) var(--spacing-4);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.time-cancel-button {
+  background-color: transparent;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+.time-cancel-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: var(--text-secondary);
+}
+
+.time-save-button {
+  background-color: var(--primary-color);
+  color: var(--background-color);
+  border: none;
+}
+
+.time-save-button:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+/* Time display in box */
+.time-display {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-left: 8px;
+}
+
+/* Time type badge styles */
+.time-type-badge {
+  display: inline-flex;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.time-type-badge.scheduled {
+  background-color: rgba(46, 139, 87, 0.1);
+  color: seagreen;
+}
+
+.time-type-badge.deadline {
+  background-color: rgba(255, 99, 71, 0.1);
+  color: tomato;
+}
+
+/* Ensure the confirmation popup stays above the modal */
+.confirmation-popup {
+  z-index: 1020;
+}
+
+/* Button layout fixes */
+.box-controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding: 8px 0;
+  width: 100%;
+}
+
+/* Button group for consistent spacing */
+.button-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Button styling refinements */
+.save-button, 
+.time-toggle-button, 
+.delete-button {
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.save-button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+}
+
+.delete-button {
+  background-color: transparent;
+  color: var(--error-color);
+  border: 1px solid var(--error-color);
+}
+
+.time-toggle-button {
+  background-color: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+/* Box time display styling */
+.box-time-display {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+  gap: 4px;
+}
+
+/* Enhanced time badge */
+.time-type-badge {
+  display: inline-flex;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.time-type-badge.deadline {
+  background-color: rgba(255, 99, 71, 0.1);
+  color: tomato;
+}
+
+.time-type-badge.scheduled {
+  background-color: rgba(46, 139, 87, 0.1);
+  color: seagreen;
+}

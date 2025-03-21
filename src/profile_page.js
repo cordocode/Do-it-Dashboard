@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ProfileButton } from './components'; 
-import './components.css';
+import './css/global.css';
+import './css/landing_page.css';
+import './css/profile_page.css';
+import './css/the_box.css';
+import './css/time.css';
 
 // 1) Point this to your backend URL in production.
 //    Locally, you might use "http://localhost:8080".
@@ -223,7 +227,7 @@ function ProfilePage({ user, setUser }) {
       // Initialize the firstName from Google token or fallback
       setFirstName(user.given_name || user.name?.split(' ')[0] || '');
       
-      // 4) Fetch the user’s profile from your backend
+      // 4) Fetch the user's profile from your backend
       fetch(`${API_BASE_URL}/api/user-profile?userId=${user.sub}&email=${user.email}`)
         .then((res) => res.json())
         .then(data => {
@@ -255,11 +259,11 @@ function ProfilePage({ user, setUser }) {
   // Navigates to the profile page
   const handleProfileClick = () => navigate('/profile');
 
-  // Saves the user’s name to the DB
+  // Saves the user's name
   const saveName = () => {
     setIsSaving(true);
     setSaveSuccess(false);
-    
+
     fetch(`${API_BASE_URL}/api/user-profile`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },

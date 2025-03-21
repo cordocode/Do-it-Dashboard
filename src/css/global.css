@@ -1,0 +1,126 @@
+/* ========================================
+   🟢 GLOBAL VARIABLES
+   ======================================== */
+   :root {
+    /* Terminal-inspired color scheme */
+    --background-color: #121212; /* Dark background like terminal */
+    --surface-color: #1e1e1e; /* Slightly lighter shade for elements */
+    --surface-hover: #2a2a2a;
+    
+    /* Primary color changed to terminal green */
+    --primary-color: #E6DFC0;
+    --primary-light: #EFEBD0; /* Slightly lighter */
+    --primary-dark: #DCCFB0; /* Slightly darker */
+    
+    /* Text colors - terminal white & grays */
+    --text-color: #E6DFC0;
+    --text-secondary: #a1a1aa;
+    --text-disabled: #71717a;
+    
+    /* Feedback colors - terminal standards */
+    --error-color: #f87171;
+    --success-color: #4ade80;
+    --warning-color: #fbbf24;
+    
+    /* Border and divider */
+    --border-color: #333333;
+    --divider-color: #262626;
+    
+    /* Shadow - darker for terminal theme */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3), 0 4px 6px rgba(0, 0, 0, 0.2);
+    
+    /* Typography - unchanged */
+    --font-family: 'Courier New', Courier, monospace;
+    --font-size-xs: 12px;
+    --font-size-sm: 14px;
+    --font-size-md: 16px;
+    --font-size-lg: 18px;
+    --font-size-xl: 20px;
+    --font-size-2xl: 24px;
+    
+    /* Layout - unchanged */
+    --spacing-1: 4px;
+    --spacing-2: 8px;
+    --spacing-3: 12px;
+    --spacing-4: 16px;
+    --spacing-5: 20px;
+    --spacing-6: 24px;
+    --border-radius-sm: 4px;
+    --border-radius-md: 6px;
+    --border-radius-lg: 8px;
+    --border-radius-full: 9999px;
+    
+    /* Animation - unchanged */
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.25s ease;
+    --transition-slow: 0.35s ease;
+  }
+  
+  /* ========================================
+     🟢 GLOBAL STYLES
+     ======================================== */
+  body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    font-family: var(--font-family);
+    line-height: 1.5;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Typography */
+  h1, h2, h3, h4, h5, h6 {
+    margin-top: 0;
+    font-weight: 600;
+    color: var(--text-color);
+    line-height: 1.2;
+  }
+  
+  h1 {
+    font-size: var(--font-size-2xl);
+    margin-bottom: var(--spacing-6);
+    color: var(--text-color); /* Changed to white */
+    letter-spacing: -0.5px;
+  }
+  
+  /* Button base styles */
+  button {
+    font-family: var(--font-family);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    border: none;
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--background-color); /* Black text on buttons */
+    background-color: var(--primary-color);
+  }
+  
+  button:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-1px);
+  }
+  
+  button:active {
+    transform: translateY(0);
+  }
+  
+  button:focus {
+    outline: 2px solid var(--primary-light);
+    outline-offset: 2px;
+  }
+  
+  button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: var(--text-disabled);
+  }
+  

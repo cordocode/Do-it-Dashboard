@@ -2,6 +2,7 @@
 
 const axios = require('axios');
 const { OpenAI } = require('openai');
+const { logStep } = require('./logger');
 
 // Configure based on environment
 const API_BASE_URL = process.env.NODE_ENV === 'development' 
@@ -24,58 +25,44 @@ function setupOpenAIService() {
    * @returns {Promise<Object>} - The parsed intent and relevant data
    */
   async function analyzeMessageIntent(message, userId) {
+    logStep('Message sent to OpenAI', { userId, message });
+
     try {
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o", // Upgraded to GPT-4
+        model: "gpt-4o",
         messages: [
           { 
             role: "system", 
-            content: `You are a friendly task manager assistant that helps users manage their tasks via SMS.
+            content: `
+You are a friendly task manager assistant helping users manage their tasks via SMS.
 
-Important: Pay careful attention to the TENSE of the user's message:
-- If they use PAST TENSE (e.g., "called mom", "finished report", "went to store"), interpret this as a completed task that should be REMOVED.
-- If they use FUTURE or PRESENT TENSE ("call mom", "finish report", "need to go to store"), interpret this as a task to ADD.
+IMPORTANT RULES:
 
-Identify if the user is trying to:
-1. Add a task (present/future tense statements or explicit "add" commands)
-2. Remove a task (past tense statements or explicit "remove" commands)
-3. Update a task (explicit requests to change/modify existing tasks)
-4. List tasks (requests to see current tasks)
-5. Ask for general help
-
-Be very attentive to linguistic cues that indicate the task is already completed and should be removed.`
+- Identify user intent: add, remove, update, list, help, set timezone.
+- For ADD or UPDATE tasks:
+  - Clearly separate the TASK CONTENT and TIME PHRASE.
+  - TASK CONTENT: Only the specific action (e.g., "Call Lorie").
+  - TIME PHRASE: Return exactly the natural language time phrase used by the user (e.g., "at 6", "tomorrow", "next Tuesday at 5 pm"). NEVER convert this phrase into a specific date or ISO timestamp.
+  - If no clear time phrase, use "none".
+- For REMOVE tasks: return task identifier.
+- NEVER infer exact dates or ISO timestamps. The backend handles that.
+`
           },
           { role: "user", content: message }
         ],
         functions: [
           {
             name: "parse_task_intent",
-            description: "Parse the user's message to determine their intent with tasks",
             parameters: {
               type: "object",
               properties: {
-                intent: {
-                  type: "string",
-                  enum: ["add_task", "remove_task", "update_task", "list_tasks", "get_help", "unknown"],
-                  description: "The detected intent of the user's message"
-                },
-                task_content: {
-                  type: "string",
-                  description: "The content of the task if the intent is to add a task. For past tense (completed) tasks, this should be the normalized present tense version."
-                },
-                task_identifier: {
-                  type: "string",
-                  description: "An identifier for which task to remove/update (may be a number, keyword, or partial description)"
-                },
-                updated_content: {
-                  type: "string",
-                  description: "The new content for the task if the intent is to update a task"
-                },
-                tense_used: {
-                  type: "string",
-                  enum: ["past", "present", "future", "unclear"],
-                  description: "The tense the user employed in their message"
-                }
+                intent: { type: "string", enum: ["add_task","remove_task","update_task","list_tasks","get_help","set_time_zone","unknown"] },
+                task_content: { type: "string", description: "Task description without time details." },
+                time_type: { type: "string", enum: ["none", "scheduled", "deadline"] },
+                time_value: { type: "string", description: "Natural language time phrase (e.g. 'at 6 today'). NEVER an ISO timestamp." },
+                reminder_offset: { type: "integer", description: "Minutes before task to remind (if specified by user)." },
+                tense_used: { type: "string", enum: ["past", "present", "future", "unclear"] },
+                user_time_zone: { type: "string", description: "User's timezone if explicitly stated." }
               },
               required: ["intent"]
             }
@@ -84,14 +71,12 @@ Be very attentive to linguistic cues that indicate the task is already completed
         function_call: { name: "parse_task_intent" }
       });
 
-      // Extract the function call result
-      const intentData = JSON.parse(
-        completion.choices[0].message.function_call.arguments
-      );
-      
+      const intentData = JSON.parse(completion.choices[0].message.function_call.arguments);
+      logStep('OpenAI Parsed Intent', intentData);
+
       return intentData;
     } catch (error) {
-      console.error('Error analyzing message intent:', error);
+      logStep('Error analyzing message intent', error.message);
       return { intent: 'unknown', error: error.message };
     }
   }
@@ -107,7 +92,7 @@ Be very attentive to linguistic cues that indicate the task is already completed
 
 Your goal is to make the user feel like they're texting with a helpful friend rather than a computer system. Acknowledge their requests in a natural way.`;
       
-      // Add context about existing tasks if we're removing tasks
+      // Add context about existing tasks if we're removing or updating tasks
       let userTasksContext = "";
       if ((intentData.intent === "remove_task" || intentData.intent === "update_task") && userId) {
         try {
@@ -122,7 +107,7 @@ Your goal is to make the user feel like they're texting with a helpful friend ra
       }
 
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o", // Upgraded to GPT-4
+        model: "gpt-4o",
         messages: [
           { 
             role: "system", 
@@ -168,13 +153,19 @@ Your goal is to make the user feel like they're texting with a helpful friend ra
    * Adds a new task for the user
    * @param {string} userId - The user's ID
    * @param {string} content - The task content
+   * @param {string} time_type - The type of time attribute for the task
+   * @param {string} time_value - The time associated with the task
+   * @param {integer} reminder_offset - The reminder offset in minutes before the task time
    * @returns {Promise<Object>} - The created task
    */
-  async function addTask(userId, content) {
+  async function addTask(userId, content, time_type, time_value, reminder_offset) {
     try {
       const response = await axios.post(`${API_BASE_URL}/api/boxes`, {
         userId,
-        content
+        content,
+        time_type: time_type || 'none',
+        time_value: time_value || null,
+        reminder_offset: reminder_offset || null
       });
       
       if (response.data.success) {
@@ -184,6 +175,28 @@ Your goal is to make the user feel like they're texting with a helpful friend ra
     } catch (error) {
       console.error('Error adding task:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Helper function to update the user's time zone in the database
+   * @param {string} userId - The user's ID
+   * @param {string} newTimeZone - The time zone string to set (e.g. "America/Los_Angeles")
+   * @returns {Promise<boolean>} - True if update succeeded, false otherwise
+   */
+  async function updateUserTimeZone(userId, newTimeZone) {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/api/user-profile`, {
+        userId,
+        timeZone: newTimeZone
+      });
+      if (response.data.success) {
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Error updating user time zone:', err);
+      return false;
     }
   }
 
@@ -212,7 +225,7 @@ Your goal is to make the user feel like they're texting with a helpful friend ra
       
       // Second OpenAI call with full context of tasks
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o", // Upgraded to GPT-4
+        model: "gpt-4o",
         messages: [
           { 
             role: "system", 
@@ -415,7 +428,7 @@ Your job is to determine which task the user wants to remove based on their mess
       
       // Second OpenAI call with full context of tasks
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o", // Upgraded to GPT-4
+        model: "gpt-4o",
         messages: [
           { 
             role: "system", 
@@ -478,9 +491,12 @@ and what the new content should be. Be warm and conversational in your analysis.
         if (taskIndex >= 0 && taskIndex < tasks.length) {
           const taskToUpdate = tasks[taskIndex];
           
-          // Update the task
+          // Update the task with new content and time fields
           const response = await axios.put(`${API_BASE_URL}/api/boxes/${taskToUpdate.id}`, {
-            content: result.new_content
+            content: result.new_content,
+            time_type: result.time_type || taskToUpdate.time_type || 'none',
+            time_value: result.time_value || taskToUpdate.time_value || null,
+            reminder_offset: result.reminder_offset || taskToUpdate.reminder_offset || null
           });
           
           if (response.data.success) {
@@ -617,11 +633,18 @@ and what the new content should be. Be warm and conversational in your analysis.
       
       // 3. Take action based on intent
       let actionResult = null;
-      
+      let responseText = "";
+
       switch (intentData.intent) {
         case 'add_task':
           if (intentData.task_content) {
-            actionResult = await addTask(user.user_id, intentData.task_content);
+            actionResult = await addTask(
+              user.user_id,
+              intentData.task_content,
+              intentData.time_type,
+              intentData.time_value,
+              intentData.reminder_offset
+            );
           }
           break;
           
@@ -639,28 +662,42 @@ and what the new content should be. Be warm and conversational in your analysis.
           const tasks = await fetchUserTasks(user.user_id);
           actionResult = { success: true, tasks };
           break;
+
+        // NEW: Handle setting the time zone
+        case 'set_time_zone':
+          if (intentData.user_time_zone) {
+            const success = await updateUserTimeZone(user.user_id, intentData.user_time_zone);
+            if (success) {
+              responseText = `Your time zone has been set to ${intentData.user_time_zone}!`;
+            } else {
+              responseText = "Sorry, I couldn't update your time zone. Please try again.";
+            }
+          } else {
+            responseText = "I couldn't figure out which time zone you want. Could you try again?";
+          }
+          break;
       }
 
-      // 4. Generate a response to the user
-      let responseText;
-      
-      // For remove_task and update_task intents, use the message from the actionResult
-      if ((intentData.intent === 'remove_task' || intentData.intent === 'update_task') && actionResult?.message) {
-        responseText = actionResult.message;
-      } else {
-        // For other intents, generate a response using OpenAI
-        responseText = await generateUserResponse(intentData, user.user_id);
-        
-        // Enhance response with task list if necessary
-        if (intentData.intent === 'list_tasks' && actionResult?.tasks) {
-          if (actionResult.tasks.length === 0) {
-            responseText += "\n\nYou don't have any tasks yet! Just text me what you need to do and I'll keep track of it for you. 📝";
-          } else {
-            const taskList = actionResult.tasks
-              .map((task, index) => `${index + 1}. ${task.content}`)
-              .join('\n');
-            
-            responseText += `\n\nHere's your current list:\n${taskList}`;
+      // 4. Generate a response to the user if we haven't already
+      if (!responseText) {
+        // For remove_task and update_task, we might have an actionResult.message
+        if ((intentData.intent === 'remove_task' || intentData.intent === 'update_task') && actionResult?.message) {
+          responseText = actionResult.message;
+        } else {
+          // For other intents, generate a response using OpenAI
+          responseText = await generateUserResponse(intentData, user.user_id);
+          
+          // Enhance response with task list if necessary
+          if (intentData.intent === 'list_tasks' && actionResult?.tasks) {
+            if (actionResult.tasks.length === 0) {
+              responseText += "\n\nYou don't have any tasks yet! Just text me what you need to do and I'll keep track of it for you. 📝";
+            } else {
+              const taskList = actionResult.tasks
+                .map((task, index) => `${index + 1}. ${task.content}`)
+                .join('\n');
+              
+              responseText += `\n\nHere's your current list:\n${taskList}`;
+            }
           }
         }
       }

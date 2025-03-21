@@ -6,6 +6,7 @@ const express = require('express');
 const cors = require('cors');
 const twilio = require('twilio');
 const setupOpenAIService = require('./openAIservice');
+const { logStep } = require('./logger');
 
 /**
  * Sets up Twilio & optional OpenAI routes on an existing Express app.
@@ -139,15 +140,19 @@ function setupTwilioService(pool) {
       const userMessage = req.body.Body;  // user's text
       const fromNumber = req.body.From;   // e.g. +13035551234
 
+      logStep('Received SMS', { fromNumber, userMessage });
+
       try {
         // Process the SMS using the enhanced OpenAI service
         const result = await openAIService.processSmsMessage(userMessage, fromNumber);
+        
+        logStep('Final Response Sent via SMS', result.responseText);
         
         // Generate TwiML response
         const twimlResponse = `<Response><Message>${result.responseText}</Message></Response>`;
         res.send(twimlResponse);
       } catch (err) {
-        console.error('Error in /twilio/webhook:', err);
+        logStep('Error processing SMS', err.message);
         res.send(`<Response><Message>Oops! 😅 I hit a snag processing your message. Could you try again in a moment?</Message></Response>`);
       }
     });

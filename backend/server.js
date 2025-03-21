@@ -78,18 +78,39 @@ app.get('/api/user-profile', async (req, res) => {
 });
 
 /* ===============================================
-   2) PUT update user’s first_name
+   2) PUT update user’s first_name and time_zone
 =============================================== */
 app.put('/api/user-profile', async (req, res) => {
   try {
-    const { userId, firstName } = req.body;
-    const result = await pool.query(
-      'UPDATE users SET first_name = $1 WHERE user_id = $2 RETURNING *',
-      [firstName, userId]
-    );
+    const { userId, firstName, timeZone } = req.body;
+
+    // Build dynamic query depending on provided fields
+    let updateQuery = 'UPDATE users SET ';
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+
+    if (firstName) {
+      updateFields.push(`first_name = $${paramIndex++}`);
+      updateValues.push(firstName);
+    }
+
+    if (timeZone) {
+      updateFields.push(`time_zone = $${paramIndex++}`);
+      updateValues.push(timeZone);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ success: false, error: 'No fields provided to update.' });
+    }
+
+    updateQuery += updateFields.join(', ') + ` WHERE user_id = $${paramIndex} RETURNING *`;
+    updateValues.push(userId);
+
+    const result = await pool.query(updateQuery, updateValues);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'User not found' });
+      return res.status(404).json({ success: false, error: 'User not found.' });
     }
 
     res.json({ success: true, user: result.rows[0] });
@@ -143,13 +164,43 @@ app.get('/db-test', async (req, res) => {
 =============================================== */
 
 // CREATE a new box
+const chrono = require('chrono-node');
+const { DateTime } = require('luxon');
+
 app.post('/api/boxes', async (req, res) => {
   try {
-    const { userId, content } = req.body;
+    const { userId, content, time_type, time_value, reminder_offset } = req.body;
+
+    const userResult = await pool.query('SELECT time_zone FROM users WHERE user_id = $1', [userId]);
+    const userTimeZone = userResult.rows[0]?.time_zone || 'UTC';
+    console.log('User timezone clearly:', userTimeZone);
+
+    let parsedTimestamp = null;
+
+    if (time_value && time_value !== 'none') {
+      const nowInUserTZ = DateTime.now().setZone(userTimeZone);
+      console.log('Now in User Timezone clearly:', nowInUserTZ.toString());
+
+      const parsedResults = chrono.parse(time_value, nowInUserTZ.toJSDate(), { forwardDate: true });
+      console.log('Chrono-node parsed results clearly:', parsedResults);
+
+      if (parsedResults.length > 0) {
+        const userLocalDate = parsedResults[0].start.date();
+        console.log('Chrono-node userLocalDate clearly:', userLocalDate);
+
+        parsedTimestamp = DateTime.fromJSDate(userLocalDate, { zone: userTimeZone }).toUTC().toISO();
+        console.log('Parsed Timestamp stored in DB (UTC) clearly:', parsedTimestamp);
+      } else {
+        throw new Error(`Chrono-node failed to parse: "${time_value}"`);
+      }
+    }
+
     const result = await pool.query(
-      'INSERT INTO boxes (user_id, content) VALUES ($1, $2) RETURNING *',
-      [userId, content]
+      `INSERT INTO boxes (user_id, content, time_type, time_value, reminder_offset)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [userId, content, time_type || 'none', parsedTimestamp, reminder_offset || 0]
     );
+
     res.json({ success: true, box: result.rows[0] });
   } catch (err) {
     console.error('Error creating box:', err);
@@ -184,14 +235,19 @@ app.delete('/api/boxes/:id', async (req, res) => {
   }
 });
 
-// UPDATE a box’s content
+// UPDATE a box's content
 app.put('/api/boxes/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { content } = req.body;
+    const { content, time_type, time_value, reminder_offset } = req.body;
     const result = await pool.query(
-      'UPDATE boxes SET content = $1 WHERE id = $2 RETURNING *',
-      [content, id]
+      `UPDATE boxes
+       SET content = $1,
+           time_type = $2,
+           time_value = $3,
+           reminder_offset = $4
+       WHERE id = $5 RETURNING *`,
+      [content, time_type || 'none', time_value, reminder_offset, id]
     );
     res.json({ success: true, box: result.rows[0] });
   } catch (err) {
@@ -216,7 +272,12 @@ app.get('/', (req, res) => {
 });
 
 /* ===============================================
-   8) Finally, start the server
+   8) Start Reminder Scheduler
+=============================================== */
+require('./reminder_scheduler');
+
+/* ===============================================
+   9) Finally, start the server
 =============================================== */
 const port = process.env.PORT || 8080;
 app.listen(port, () => {

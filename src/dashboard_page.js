@@ -1,7 +1,13 @@
+// dashboard_page.js
+
 import React, { useState, useEffect } from "react";
 import { Box, ProfileButton } from "./components";
 import { useNavigate } from "react-router-dom";
-import './components.css';
+import './css/global.css';
+import './css/landing_page.css';
+import './css/profile_page.css';
+import './css/the_box.css';
+import './css/time.css';
 
 const API_BASE_URL = process.env.NODE_ENV === 'development' 
   ? 'http://localhost:8080' 
@@ -11,6 +17,7 @@ function DashboardPage({ user, setUser }) {
   const [displayName, setDisplayName] = useState(''); // Name from the DB
   const [boxes, setBoxes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userDbTimeZone, setUserDbTimeZone] = useState('UTC');
   const navigate = useNavigate();
 
   // 1) Fetch the user's name from the database
@@ -25,8 +32,19 @@ function DashboardPage({ user, setUser }) {
             // Fallback if DB has no name
             setDisplayName('friend');
           }
+          if (data.success) {
+            const profile = data.profile;
+            setDisplayName(profile.first_name || 'friend');
+            if (profile.time_zone) {
+              setUserDbTimeZone(profile.time_zone);
+            }
+          }
+          setLoading(false);
         })
-        .catch(err => console.error('Error fetching user name:', err));
+        .catch(err => {
+          console.error('Error fetching user name:', err);
+          setLoading(false);
+        });
     }
   }, [user]);
 
@@ -51,7 +69,28 @@ function DashboardPage({ user, setUser }) {
 
   // 3) Create a new box in the database (empty content)
   const addBox = () => {
-    setBoxes([...boxes, { id: null, content: "" }]);
+    // First, immediately detect the user's timezone automatically
+    const detectedTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    // Update user's timezone in the database automatically
+    fetch(`${API_BASE_URL}/api/user-profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: user.sub || user.email,
+        timeZone: detectedTimeZone
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.success) {
+        console.error('Failed to automatically update timezone:', data.error);
+      }
+    })
+    .catch(err => console.error('Error automatically updating timezone:', err));
+
+    // Proceed normally to add the new task to the UI
+    setBoxes([...boxes, { id: null, content: "", time_type: "none", time_value: "" }]);
   };
 
   // 4) Delete a box in the database
@@ -117,12 +156,15 @@ function DashboardPage({ user, setUser }) {
           ) : (
             boxes.map(box => (
               <Box
-                key={box.id || Math.random()} // Temporary key for unsaved boxes
+                key={box.id || Math.random()}
                 id={box.id}
                 user={user}
                 onDelete={deleteBox}
                 onSave={handleBoxSave}
                 initialContent={box.content}
+                initialTimeType={box.time_type || "none"}
+                initialTimeValue={box.time_value || ""}
+                userTimeZone={userDbTimeZone}
               />
             ))
           )

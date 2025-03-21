@@ -2,7 +2,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
-import '../src/components.css';
+import './css/global.css';
+import './css/landing_page.css';
+import './css/profile_page.css';
+import './css/the_box.css';
+import './css/time.css';
 
 const ClientID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 

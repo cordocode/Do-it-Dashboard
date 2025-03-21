@@ -1,0 +1,246 @@
+/* ========================================
+   🟢 CONFIRMATION POPUP STYLES
+   ======================================== */
+.confirmation-popup {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  margin-top: var (--spacing-2);
+  padding: var(--spacing-2);
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-2);
+  box-shadow: var(--shadow-md);
+  z-index: 100;
+  animation: popIn var(--transition-fast);
+}
+
+@keyframes popIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.confirmation-button {
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-sm);
+  min-width: 32px;
+}
+
+/* ========================================
+   🟢 BOX COMPONENT STYLES
+   ======================================== */
+.box-container {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  margin: var(--spacing-4) 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  transition: transform var(--transition-normal);
+  animation: fadeIn var(--transition-normal);
+  /* FIX: Set a definite box sizing to prevent glitches */
+  box-sizing: border-box;
+}
+
+/* Prevent hover effect from causing layout issues */
+.box-container:hover {
+  transform: translateY(-2px);
+}
+
+.textarea-container {
+  position: relative;
+  width: 100%;
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-normal);
+  /* FIX: Ensure proper display for fixing status indicator height */
+  display: flex;
+  overflow: hidden;
+}
+
+.textarea-container:focus-within {
+  box-shadow: var(--shadow-md);
+}
+
+.box-textarea {
+  flex: 1;
+  min-height: 48px;
+  padding: var(--spacing-3) var(--spacing-4);
+  padding-left: calc(var(--spacing-3) + 4px); /* Make room for status indicator */
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  background: var(--surface-color); /* Updated to lighter shade */
+  font-family: var(--font-family);
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+  color: var(--text-color);
+  resize: none;
+  transition: all var(--transition-normal);
+  /* FIX: Ensure proper sizing */
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.box-textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.box-controls {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: var(--spacing-3);
+  position: relative;
+}
+
+.save-button, .delete-button {
+  padding: var(--spacing-2) var(--spacing-4);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  color: var(--background-color);
+}
+
+/* FIX: Keep save button color consistent */
+.save-button {
+  background-color: var(--primary-color);
+}
+
+.save-button:hover {
+  background-color: var(--primary-dark);
+}
+
+/* Remove the color change on saved state */
+.save-button.saved {
+  background-color: var(--primary-color);
+}
+
+.delete-button {
+  background-color: transparent;
+  color: var(--text-secondary);
+  margin-left: auto;
+  border: 1px solid var(--border-color);
+}
+
+.delete-button:hover {
+  background-color: rgba(248, 113, 113, 0.1);
+  color: var(--error-color);
+  border-color: var(--error-color);
+}
+
+/* FIX: Status indicator to match container height */
+.status-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  transition: background-color var(--transition-normal);
+  border-top-left-radius: var (--border-radius-md);
+  border-bottom-left-radius: var(--border-radius-md);
+  /* FIX: Ensure it's always visible at the correct height */
+  height: 100%;
+  z-index: 1;
+}
+
+.status-unsaved {
+  background-color: var(--error-color);
+}
+
+.status-modified {
+  background-color: var(--warning-color);
+}
+
+.status-saved {
+  background-color: var(--success-color);
+}
+
+/* ========================================
+   🟢 CONTAINER STYLES
+   ======================================== */
+.content-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--spacing-6);
+  position: relative;
+  animation: contentFadeIn var(--transition-normal);
+  box-sizing: border-box;
+}
+
+@keyframes contentFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dashboard-header {
+  position: fixed;
+  top: var(--spacing-5);
+  right: var(--spacing-5);
+  z-index: 1000;
+}
+
+.action-container {
+  width: 100%;
+  max-width: 600px;
+  margin: var(--spacing-5) 0;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.action-container button {
+  background-color: var(--primary-color);
+  color: var(--background-color);
+  padding: var(--spacing-2) var(--spacing-4);
+  font-weight: 500;
+  font-size: var(--font-size-sm);
+  border-radius: var(--border-radius-md);
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.action-container button:hover {
+  background-color: var(--primary-dark);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+/* Loading indicator styles */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100%;
+  background-color: var(--background-color);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(74, 222, 128, 0.2);
+  border-radius: 50%;
+  border-top-color: var(--primary-color);
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
