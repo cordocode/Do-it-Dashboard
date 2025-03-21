@@ -21,32 +21,57 @@ function DashboardPage({ user, setUser }) {
   const navigate = useNavigate();
 
   // 1) Fetch the user's name from the database
-  useEffect(() => {
-    if (user) {
-      fetch(`${API_BASE_URL}/api/user-profile?userId=${user.sub}&email=${user.email}`)
-        .then(response => response.json())
-        .then(data => {
-          if (data.success && data.profile.first_name) {
-            setDisplayName(data.profile.first_name);
+  // In dashboard_page.js
+useEffect(() => {
+  if (user) {
+    fetch(`${API_BASE_URL}/api/user-profile?userId=${user.sub}&email=${user.email}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          const profile = data.profile;
+          setDisplayName(profile.first_name || 'friend');
+          // Store timezone in state, with a fallback
+          if (profile.time_zone) {
+            console.log("Retrieved user timezone from DB:", profile.time_zone);
+            setUserDbTimeZone(profile.time_zone);
           } else {
-            // Fallback if DB has no name
-            setDisplayName('friend');
+            // If no timezone in DB, detect and update it
+            const detectedTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            console.log("No timezone in DB, detected:", detectedTimeZone);
+            setUserDbTimeZone(detectedTimeZone);
+            // Update timezone in database
+            updateUserTimeZone(detectedTimeZone);
           }
-          if (data.success) {
-            const profile = data.profile;
-            setDisplayName(profile.first_name || 'friend');
-            if (profile.time_zone) {
-              setUserDbTimeZone(profile.time_zone);
-            }
-          }
-          setLoading(false);
-        })
-        .catch(err => {
-          console.error('Error fetching user name:', err);
-          setLoading(false);
-        });
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Error fetching user profile:', err);
+        setLoading(false);
+      });
+  }
+}, [user]);
+
+// Add this helper function to update timezone
+const updateUserTimeZone = (timeZone) => {
+  fetch(`${API_BASE_URL}/api/user-profile`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userId: user.sub || user.email,
+      timeZone: timeZone
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (!data.success) {
+      console.error('Failed to update timezone:', data.error);
+    } else {
+      console.log('Updated user timezone to:', timeZone);
     }
-  }, [user]);
+  })
+  .catch(err => console.error('Error updating timezone:', err));
+};
 
   // 2) Fetch existing boxes from the backend for this user
   useEffect(() => {
@@ -67,29 +92,9 @@ function DashboardPage({ user, setUser }) {
     }
   }, [user]);
 
-  // 3) Create a new box in the database (empty content)
+
   const addBox = () => {
-    // First, immediately detect the user's timezone automatically
-    const detectedTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-    // Update user's timezone in the database automatically
-    fetch(`${API_BASE_URL}/api/user-profile`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: user.sub || user.email,
-        timeZone: detectedTimeZone
-      })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (!data.success) {
-        console.error('Failed to automatically update timezone:', data.error);
-      }
-    })
-    .catch(err => console.error('Error automatically updating timezone:', err));
-
-    // Proceed normally to add the new task to the UI
+    // Just add a new box without changing timezone
     setBoxes([...boxes, { id: null, content: "", time_type: "none", time_value: "" }]);
   };
 
@@ -148,13 +153,19 @@ function DashboardPage({ user, setUser }) {
 
         {loading ? (
           <div className="loading-spinner"></div>
+        ) : boxes.length === 0 ? (
+          <div style={{ margin: '40px 0', color: 'var(--text-secondary)' }}>
+            No tasks yet. Add a new task to get started!
+          </div>
         ) : (
-          boxes.length === 0 ? (
-            <div style={{ margin: '40px 0', color: 'var(--text-secondary)' }}>
-              No tasks yet. Add a new task to get started!
-            </div>
-          ) : (
-            boxes.map(box => (
+          boxes.map(box => {
+            console.log("DEBUG: PASSING TO BOX:", {
+              boxId: box.id,
+              timeType: box.time_type,
+              timeValue: box.time_value,
+              userTimeZone: userDbTimeZone
+            });
+            return (
               <Box
                 key={box.id || Math.random()}
                 id={box.id}
@@ -166,8 +177,8 @@ function DashboardPage({ user, setUser }) {
                 initialTimeValue={box.time_value || ""}
                 userTimeZone={userDbTimeZone}
               />
-            ))
-          )
+            );
+          })
         )}
       </div>
     </>

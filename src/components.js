@@ -157,6 +157,14 @@ export function Box({
   initialTimeValue = "",
   userTimeZone, 
 }) {
+
+  console.log("DEBUG: BOX INITIALIZED:", {
+    id,
+    initialTimeType,
+    initialTimeValue,
+    userTimeZone
+  });
+
   const [text, setText] = useState(initialContent);
   const [savedText, setSavedText] = useState(initialContent);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -206,7 +214,15 @@ export function Box({
       : `${API_BASE_URL}/api/boxes`;
     const method = id ? "PUT" : "POST";
     const userId = user?.sub || user?.email;
-
+  
+    console.log("DEBUG: SAVING BOX:", {
+      method,
+      userId,
+      content: text,
+      time_type: timeType,
+      time_value: timeValue
+    });
+  
     fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
@@ -219,6 +235,7 @@ export function Box({
     })
       .then((res) => res.json())
       .then((data) => {
+        console.log("DEBUG: SAVE RESPONSE:", data);
         if (data.success) {
           setSavedText(text);
           onSave(id, data.box);
@@ -257,27 +274,74 @@ export function Box({
   };
 
   // Render the local-time display
-  const renderTimeDisplay = () => {
-    if (!timeValue || timeType === "none") return null;
+const renderTimeDisplay = () => {
+  if (!timeValue || timeType === "none") return null;
 
-    // 🟢 Add debug logs to see exactly what is happening:
-    console.log("DEBUG: userTimeZone =", userTimeZone);
-    const parsedUtc = DateTime.fromISO(timeValue, { zone: "utc" });
-    console.log("DEBUG: parsedUtc =", parsedUtc.toString());
+  console.log("============== TIME DISPLAY DEBUG ==============");
+  console.log("Input timeValue:", timeValue);
+  console.log("Input userTimeZone:", userTimeZone);
+  
+  // 1. Parse as JavaScript Date
+  const jsDate = new Date(timeValue);
+  console.log("JS Date object:", jsDate);
+  console.log("JS Date toString():", jsDate.toString());
+  console.log("JS Date toISOString():", jsDate.toISOString());
+  console.log("JS Date toLocaleString():", jsDate.toLocaleString());
+  
+  // 2. Time parts
+  console.log("UTC Hours:", jsDate.getUTCHours());
+  console.log("Local Hours:", jsDate.getHours());
+  console.log("Timezone offset (minutes):", jsDate.getTimezoneOffset());
+  
+  // 3. Browser timezone info
+  console.log("Browser timezone:", Intl.DateTimeFormat().resolvedOptions().timeZone);
+  
+  // 4. Try as Luxon DateTime
+  try {
+    const luxonUtc = DateTime.fromISO(timeValue, { zone: "UTC" });
+    console.log("Luxon UTC:", luxonUtc.toString());
     
-    const local = parsedUtc.setZone(userTimeZone || "UTC");
-    console.log("DEBUG: local =", local.toString());
-
-    const localTimeDisplay = local.toLocaleString(DateTime.DATETIME_MED);
-    console.log("DEBUG: localTimeDisplay =", localTimeDisplay);
-
+    const userTz = userTimeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const luxonLocal = luxonUtc.setZone(userTz);
+    console.log("Luxon Local:", luxonLocal.toString());
+    
+    // Simple formatted time for display
+    const formattedTime = jsDate.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+    
+    console.log("Formatted time:", formattedTime);
+    console.log("===============================================");
+    
     return (
       <div className="time-display">
         {timeType === "deadline" ? "Due: " : "Scheduled: "}
-        {localTimeDisplay}
+        {formattedTime}
+        <div className="timezone-info">({userTz})</div>
       </div>
     );
-  };
+  } catch (error) {
+    console.error("Error in Luxon processing:", error);
+    
+    // Fallback to basic formatting
+    const fallbackFormat = jsDate.toLocaleString();
+    console.log("Fallback format:", fallbackFormat);
+    console.log("===============================================");
+    
+    return (
+      <div className="time-display">
+        {timeType === "deadline" ? "Due: " : "Scheduled: "}
+        {fallbackFormat}
+        <div className="timezone-info">({userTimeZone || "browser default"})</div>
+      </div>
+    );
+  }
+};
 
   return (
     <div className="box-container">

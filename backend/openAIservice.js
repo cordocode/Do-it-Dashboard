@@ -159,6 +159,10 @@ Your goal is to make the user feel like they're texting with a helpful friend ra
    * @returns {Promise<Object>} - The created task
    */
   async function addTask(userId, content, time_type, time_value, reminder_offset) {
+    console.log('OPENAI SERVICE - addTask params:', {
+      userId, content, time_type, time_value, reminder_offset
+    });
+    
     try {
       const response = await axios.post(`${API_BASE_URL}/api/boxes`, {
         userId,

@@ -10,7 +10,7 @@ const { Pool } = require('pg');
 /** Decide whether to use SSL in production. */
 function getSSLConfig() {
   if (process.env.NODE_ENV === 'development') {
-    // local dev typically doesn’t use SSL
+    // local dev typically doesn't use SSL
     return false;
   } else {
     // on AWS, often need to allow self-signed
@@ -78,7 +78,7 @@ app.get('/api/user-profile', async (req, res) => {
 });
 
 /* ===============================================
-   2) PUT update user’s first_name and time_zone
+   2) PUT update user's first_name and time_zone
 =============================================== */
 app.put('/api/user-profile', async (req, res) => {
   try {
@@ -173,25 +173,48 @@ app.post('/api/boxes', async (req, res) => {
 
     const userResult = await pool.query('SELECT time_zone FROM users WHERE user_id = $1', [userId]);
     const userTimeZone = userResult.rows[0]?.time_zone || 'UTC';
-    console.log('User timezone clearly:', userTimeZone);
+    console.log('User timezone:', userTimeZone);
 
     let parsedTimestamp = null;
 
     if (time_value && time_value !== 'none') {
-      const nowInUserTZ = DateTime.now().setZone(userTimeZone);
-      console.log('Now in User Timezone clearly:', nowInUserTZ.toString());
-
-      const parsedResults = chrono.parse(time_value, nowInUserTZ.toJSDate(), { forwardDate: true });
-      console.log('Chrono-node parsed results clearly:', parsedResults);
-
-      if (parsedResults.length > 0) {
-        const userLocalDate = parsedResults[0].start.date();
-        console.log('Chrono-node userLocalDate clearly:', userLocalDate);
-
-        parsedTimestamp = DateTime.fromJSDate(userLocalDate, { zone: userTimeZone }).toUTC().toISO();
-        console.log('Parsed Timestamp stored in DB (UTC) clearly:', parsedTimestamp);
+      // First check if time_value is already a valid ISO string
+      const isISODate = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(time_value);
+      
+      if (isISODate) {
+        // It's already formatted as ISO, just ensure it's in UTC
+        parsedTimestamp = DateTime.fromISO(time_value).toUTC().toISO();
+        console.log('Already ISO format - converted to UTC:', parsedTimestamp);
       } else {
-        throw new Error(`Chrono-node failed to parse: "${time_value}"`);
+        // Parse natural language time
+        const nowInUserTZ = DateTime.now().setZone(userTimeZone);
+        console.log('Now in User Timezone:', nowInUserTZ.toString());
+
+        // CRITICAL FIX: If the time includes "tonight" but doesn't specify AM/PM,
+        // and the hour is between 1-11, assume PM
+        let timeString = time_value;
+        if (/tonight at \d{1,2}(:00)?$/.test(time_value)) {
+          const hourMatch = time_value.match(/\d{1,2}/);
+          if (hourMatch && parseInt(hourMatch[0]) < 12) {
+            timeString = time_value.replace(/at (\d{1,2})/, 'at $1pm');
+            console.log('Assuming PM for evening time:', timeString);
+          }
+        }
+
+        const parsedResults = chrono.parse(timeString, nowInUserTZ.toJSDate(), { forwardDate: true });
+        console.log('Chrono-node parsed results:', parsedResults);
+
+        if (parsedResults.length > 0) {
+          const userLocalDate = parsedResults[0].start.date();
+          console.log('Chrono-node userLocalDate:', userLocalDate);
+
+          // FIXED: The userLocalDate is already in UTC format
+          // Just store it directly without additional timezone conversion
+          parsedTimestamp = userLocalDate.toISOString();
+          console.log('Parsed Timestamp stored in DB (UTC):', parsedTimestamp);
+        } else {
+          throw new Error(`Failed to parse: "${time_value}"`);
+        }
       }
     }
 
@@ -239,7 +262,45 @@ app.delete('/api/boxes/:id', async (req, res) => {
 app.put('/api/boxes/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { content, time_type, time_value, reminder_offset } = req.body;
+    const { content, time_type, time_value, reminder_offset, userId } = req.body;
+    
+    // Process time_value if provided and not 'none'
+    let parsedTimestamp = time_value;
+    
+    if (time_value && time_value !== 'none' && userId) {
+      // Check if it's already in ISO format
+      const isISODate = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(time_value);
+      
+      if (!isISODate) {
+        // Get user's timezone for natural language parsing
+        const userResult = await pool.query('SELECT time_zone FROM users WHERE user_id = $1', [userId]);
+        const userTimeZone = userResult.rows[0]?.time_zone || 'UTC';
+        
+        // Parse natural language using user's timezone as reference
+        const nowInUserTZ = DateTime.now().setZone(userTimeZone);
+        
+        // CRITICAL FIX: If the time includes "tonight" but doesn't specify AM/PM,
+        // and the hour is between 1-11, assume PMlet timeString = time_value;
+        if (/tonight at \d{1,2}(:00)?$/.test(time_value)) {
+          const hourMatch = time_value.match(/\d{1,2}/);
+          if (hourMatch && parseInt(hourMatch[0]) < 12) {
+            timeString = time_value.replace(/at (\d{1,2})/, 'at $1pm');
+            console.log('Assuming PM for evening time:', timeString);
+          }
+        }
+        
+        const parsedResults = chrono.parse(timeString, nowInUserTZ.toJSDate(), { forwardDate: true });
+        
+        if (parsedResults.length > 0) {
+          const userLocalDate = parsedResults[0].start.date();
+          
+          // FIXED: The userLocalDate is already in UTC format
+          // Just store it directly without additional timezone conversion
+          parsedTimestamp = userLocalDate.toISOString();
+        }
+      }
+    }
+    console.log('FINAL DB INSERT - timestamp value:', parsedTimestamp);
     const result = await pool.query(
       `UPDATE boxes
        SET content = $1,
@@ -247,8 +308,10 @@ app.put('/api/boxes/:id', async (req, res) => {
            time_value = $3,
            reminder_offset = $4
        WHERE id = $5 RETURNING *`,
-      [content, time_type || 'none', time_value, reminder_offset, id]
+      [content, time_type || 'none', parsedTimestamp, reminder_offset, id]
     );
+    console.log('RETURNED FROM DB:', result.rows[0].time_value);
+    
     res.json({ success: true, box: result.rows[0] });
   } catch (err) {
     console.error('Error updating box:', err);
