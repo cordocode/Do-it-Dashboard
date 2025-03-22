@@ -38,7 +38,13 @@ You are a friendly task manager assistant helping users manage their tasks via S
 
 IMPORTANT RULES:
 
-- Identify user intent: add, remove, update, list, help, set timezone.
+- Identify user intent: add_task, remove_task, update_task, list_tasks, get_help, set_time_zone, update_reminder, unknown.
+- Carefully distinguish between adding a new task and updating a reminder for an existing task.
+- Messages like "remind me X hours/minutes before [task]" or "change reminder for [task]" indicate a reminder update (update_reminder), not a new task.
+- For REMINDER UPDATES:
+  - Identify the existing task the user is referring to
+  - Extract the desired reminder time (e.g., "2 hours before", "30 minutes before")
+  - Convert this to a reminder_offset in minutes (e.g., "2 hours before" = 120 minutes)
 - For ADD or UPDATE tasks:
   - Clearly separate the TASK CONTENT and TIME PHRASE.
   - TASK CONTENT: Only the specific action (e.g., "Call Lorie").
@@ -56,13 +62,38 @@ IMPORTANT RULES:
             parameters: {
               type: "object",
               properties: {
-                intent: { type: "string", enum: ["add_task","remove_task","update_task","list_tasks","get_help","set_time_zone","unknown"] },
-                task_content: { type: "string", description: "Task description without time details." },
-                time_type: { type: "string", enum: ["none", "scheduled", "deadline"] },
-                time_value: { type: "string", description: "Natural language time phrase (e.g. 'at 6 today'). NEVER an ISO timestamp." },
-                reminder_offset: { type: "integer", description: "Minutes before task to remind (if specified by user)." },
-                tense_used: { type: "string", enum: ["past", "present", "future", "unclear"] },
-                user_time_zone: { type: "string", description: "User's timezone if explicitly stated." }
+                intent: { 
+                  type: "string", 
+                  enum: ["add_task", "remove_task", "update_task", "list_tasks", "get_help", "set_time_zone", "update_reminder", "unknown"] 
+                },
+                task_content: { 
+                  type: "string", 
+                  description: "Task description without time details." 
+                },
+                task_reference: { 
+                  type: "string", 
+                  description: "For update_reminder: The existing task the user is referring to." 
+                },
+                time_type: { 
+                  type: "string", 
+                  enum: ["none", "scheduled", "deadline"] 
+                },
+                time_value: { 
+                  type: "string", 
+                  description: "Natural language time phrase (e.g. 'at 6 today'). NEVER an ISO timestamp." 
+                },
+                reminder_offset: { 
+                  type: "integer", 
+                  description: "Minutes before task to remind. For 'update_reminder', this is required." 
+                },
+                tense_used: { 
+                  type: "string", 
+                  enum: ["past", "present", "future", "unclear"] 
+                },
+                user_time_zone: { 
+                  type: "string", 
+                  description: "User's timezone if explicitly stated." 
+                }
               },
               required: ["intent"]
             }
@@ -94,7 +125,7 @@ Your goal is to make the user feel like they're texting with a helpful friend ra
       
       // Add context about existing tasks if we're removing or updating tasks
       let userTasksContext = "";
-      if ((intentData.intent === "remove_task" || intentData.intent === "update_task") && userId) {
+      if ((intentData.intent === "remove_task" || intentData.intent === "update_task" || intentData.intent === "update_reminder") && userId) {
         try {
           const tasks = await fetchUserTasks(userId);
           if (tasks && tasks.length > 0) {
@@ -118,7 +149,9 @@ Your goal is to make the user feel like they're texting with a helpful friend ra
             content: userTasksContext + `Generate a response for a user with intent: ${intentData.intent}` +
               (intentData.task_content ? `, task content: ${intentData.task_content}` : '') +
               (intentData.task_identifier ? `, task identifier: ${intentData.task_identifier}` : '') +
+              (intentData.task_reference ? `, task reference: ${intentData.task_reference}` : '') +
               (intentData.updated_content ? `, updated content: ${intentData.updated_content}` : '') +
+              (intentData.reminder_offset ? `, reminder offset: ${intentData.reminder_offset} minutes` : '') +
               (intentData.tense_used ? `, tense used: ${intentData.tense_used}` : '')
           }
         ]
@@ -615,6 +648,128 @@ and what the new content should be. Be warm and conversational in your analysis.
   }
 
   /**
+   * NEW: Handles updating just the reminder offset for a task
+   * @param {string} message - The user's message
+   * @param {string} userId - The user's ID
+   * @returns {Promise<Object>} - Result object with success status and message
+   */
+  async function handleUpdateReminderIntent(message, userId, intentData) {
+    try {
+      // Get all the user's tasks
+      const tasks = await fetchUserTasks(userId);
+      
+      if (tasks.length === 0) {
+        return {
+          success: false,
+          message: "You don't have any tasks with reminders to update yet! First add a task with a time, then you can set a reminder for it."
+        };
+      }
+
+      // Find tasks that match the reference the user provided
+      const matchingTasks = findMatchingTasks(intentData.task_reference, tasks);
+      
+      if (matchingTasks.length === 1) {
+        // Clear match - update the reminder offset
+        const taskToUpdate = matchingTasks[0];
+        
+        // Verify the task has a time set
+        if (taskToUpdate.time_type === 'none' || !taskToUpdate.time_value) {
+          return {
+            success: false,
+            message: `I can't set a reminder for "${taskToUpdate.content}" because it doesn't have a scheduled time. First update the task with a time, then you can set a reminder for it.`
+          };
+        }
+        
+        // Update just the reminder_offset field
+        const response = await axios.put(`${API_BASE_URL}/api/boxes/${taskToUpdate.id}`, {
+          userId: userId,
+          content: taskToUpdate.content,
+          time_type: taskToUpdate.time_type,
+          time_value: taskToUpdate.time_value,
+          reminder_offset: intentData.reminder_offset || 0
+        });
+        
+        if (response.data.success) {
+          // Format the reminder time nicely
+          let reminderText = "";
+          if (intentData.reminder_offset === 0) {
+            reminderText = "at the scheduled time";
+          } else if (intentData.reminder_offset === 60) {
+            reminderText = "1 hour before";
+          } else if (intentData.reminder_offset === 120) {
+            reminderText = "2 hours before";
+          } else if (intentData.reminder_offset % 60 === 0) {
+            reminderText = `${intentData.reminder_offset / 60} hours before`;
+          } else {
+            reminderText = `${intentData.reminder_offset} minutes before`;
+          }
+          
+          return {
+            success: true,
+            updatedTask: response.data.box,
+            message: `I've updated your reminder for "${taskToUpdate.content}" to notify you ${reminderText}. 👍`
+          };
+        } else {
+          return {
+            success: false,
+            message: "I had trouble updating your reminder. Please try again."
+          };
+        }
+      } else if (matchingTasks.length > 1) {
+        // Multiple possible matches
+        const taskOptions = matchingTasks.map((task, idx) => 
+          `${idx + 1}. ${task.content}`
+        ).join('\n');
+        
+        return {
+          success: false,
+          ambiguous: true,
+          message: `I found multiple tasks that could match "${intentData.task_reference}". Which one did you mean?\n\n${taskOptions}\n\nReply with just the number.`,
+          matchingTasks,
+          intentData // Pass this through so we can use it in the follow-up
+        };
+      } else {
+        // No match found
+        const tasksList = tasks.map((task, index) => 
+          `${index + 1}. ${task.content}`
+        ).join('\n');
+        
+        return {
+          success: false,
+          message: `I couldn't find a task matching "${intentData.task_reference}". Here are your current tasks:\n\n${tasksList}\n\nWhich one would you like to set a reminder for?`
+        };
+      }
+    } catch (error) {
+      console.error('Error handling update reminder intent:', error);
+      return {
+        success: false,
+        error: error.message,
+        message: "Oops! Something went wrong while trying to update your reminder. Could you try again?"
+      };
+    }
+  }
+
+  /**
+   * Helper function to find tasks matching a description
+   * @param {string} taskReference - The task description/reference
+   * @param {Array} tasks - List of user tasks
+   * @returns {Array} - Matching tasks
+   */
+  function findMatchingTasks(taskReference, tasks) {
+    if (!taskReference || !tasks || tasks.length === 0) {
+      return [];
+    }
+    
+    // Clean up the reference for better matching
+    const cleanReference = taskReference.toLowerCase().trim();
+    
+    // Try to find by content similarity
+    return tasks.filter(task => 
+      task.content.toLowerCase().includes(cleanReference)
+    );
+  }
+
+  /**
    * Processes an incoming SMS and generates appropriate actions and responses
    * @param {string} message - The incoming message text
    * @param {string} fromNumber - The phone number the message came from
@@ -624,6 +779,12 @@ and what the new content should be. Be warm and conversational in your analysis.
     try {
       // 1. First, identify the user from the phone number
       const user = await identifyUserFromPhone(fromNumber);
+      
+      logStep('SMS Message Processing - Start', { message, fromNumber });
+      logStep('SMS Message Processing - User identified', { 
+        user_id: user?.user_id,
+        found: !!user
+      });
       
       if (!user) {
         return {
@@ -635,6 +796,16 @@ and what the new content should be. Be warm and conversational in your analysis.
       // 2. Analyze the message intent
       const intentData = await analyzeMessageIntent(message, user.user_id);
       
+      logStep('SMS Message Processing - Intent analyzed', { 
+        intent: intentData.intent,
+        task_content: intentData.task_content,
+        time_type: intentData.time_type,
+        time_value: intentData.time_value,
+        task_reference: intentData.task_reference,
+        reminder_offset: intentData.reminder_offset,
+        tense_used: intentData.tense_used
+      });
+      
       // 3. Take action based on intent
       let actionResult = null;
       let responseText = "";
@@ -642,6 +813,14 @@ and what the new content should be. Be warm and conversational in your analysis.
       switch (intentData.intent) {
         case 'add_task':
           if (intentData.task_content) {
+            logStep('SMS Message Processing - Adding task with time data', {
+              user_id: user.user_id,
+              content: intentData.task_content,
+              time_type: intentData.time_type || 'none',
+              time_value: intentData.time_value || null,
+              reminder_offset: intentData.reminder_offset || null
+            });
+            
             actionResult = await addTask(
               user.user_id,
               intentData.task_content,
@@ -649,6 +828,12 @@ and what the new content should be. Be warm and conversational in your analysis.
               intentData.time_value,
               intentData.reminder_offset
             );
+            
+            logStep('SMS Message Processing - Task added result', {
+              success: !!actionResult,
+              task_id: actionResult?.id,
+              time_value_returned: actionResult?.time_value
+            });
           }
           break;
           
@@ -667,7 +852,7 @@ and what the new content should be. Be warm and conversational in your analysis.
           actionResult = { success: true, tasks };
           break;
 
-        // NEW: Handle setting the time zone
+        // Handle setting the time zone
         case 'set_time_zone':
           if (intentData.user_time_zone) {
             const success = await updateUserTimeZone(user.user_id, intentData.user_time_zone);
@@ -680,12 +865,20 @@ and what the new content should be. Be warm and conversational in your analysis.
             responseText = "I couldn't figure out which time zone you want. Could you try again?";
           }
           break;
+          
+        // NEW: Handle updating just the reminder for a task
+        case 'update_reminder':
+          actionResult = await handleUpdateReminderIntent(message, user.user_id, intentData);
+          if (actionResult && actionResult.message) {
+            responseText = actionResult.message;
+          }
+          break;
       }
 
       // 4. Generate a response to the user if we haven't already
       if (!responseText) {
         // For remove_task and update_task, we might have an actionResult.message
-        if ((intentData.intent === 'remove_task' || intentData.intent === 'update_task') && actionResult?.message) {
+        if ((intentData.intent === 'remove_task' || intentData.intent === 'update_task' || intentData.intent === 'update_reminder') && actionResult?.message) {
           responseText = actionResult.message;
         } else {
           // For other intents, generate a response using OpenAI
@@ -706,6 +899,8 @@ and what the new content should be. Be warm and conversational in your analysis.
         }
       }
 
+      logStep('SMS Message Processing - Final response', { responseText });
+      
       return {
         success: true,
         responseText,
@@ -714,6 +909,7 @@ and what the new content should be. Be warm and conversational in your analysis.
       };
     } catch (error) {
       console.error('Error processing SMS:', error);
+      logStep('SMS Message Processing - Error', { error: error.message, stack: error.stack });
       return {
         success: false,
         responseText: "Uh-oh! 😅 I'm having a little trouble right now. Could you try again in a moment?",
@@ -756,7 +952,9 @@ and what the new content should be. Be warm and conversational in your analysis.
     removeTask,
     updateTask,
     handleRemoveTaskIntent,
-    handleUpdateTaskIntent
+    handleUpdateTaskIntent,
+    handleUpdateReminderIntent,
+    findMatchingTasks
   };
 }
 

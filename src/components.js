@@ -47,18 +47,83 @@ export function ConfirmationPopup({ onConfirm, onCancel }) {
 /* ========================================
    🟢 TIME SELECTOR MODAL COMPONENT
 ======================================== */
-function TimeModal({ timeType, setTimeType, timeValue, setTimeValue, onClose, onDone, boxId }) {
-  // Local state for the text input
-  const [timeText, setTimeText] = useState(timeValue || "");
 
+function TimeModal({ timeType, setTimeType, timeValue, setTimeValue, onClose, onDone, boxId, userTimeZone }) {
+  // Set up initial state using natural language input or format existing timestamp
+  const [timeText, setTimeText] = useState("");
+  const [parsedTime, setParsedTime] = useState(null);
+  
+  // Initialize the time text field
+  useEffect(() => {
+    // For already parsed ISO timestamps, convert to human readable
+    if (timeValue && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(timeValue)) {
+      try {
+        const date = new Date(timeValue);
+        const formatted = date.toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+        setTimeText(formatted);
+        setParsedTime(timeValue); // Keep the ISO version for submission
+      } catch (e) {
+        setTimeText(timeValue);
+      }
+    } else {
+      // For natural language input or empty input
+      setTimeText(timeValue || "");
+    }
+  }, [timeValue]);
+  
+  // Parse time when text changes
+  useEffect(() => {
+    if (timeType === "none" || !timeText) {
+      setParsedTime(null);
+      return;
+    }
+    
+    // Don't reprocess if it's already an ISO timestamp (for editing)
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(timeText)) {
+      return;
+    }
+    
+    // Wait a brief moment after typing stops
+    const timer = setTimeout(() => {
+      fetch(`${API_BASE_URL}/api/parse-time`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          timeString: timeText,
+          timeZone: userTimeZone
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setParsedTime(data.parsed);
+        } else {
+          setParsedTime(null);
+        }
+      })
+      .catch(err => {
+        console.error("Error parsing time:", err);
+      });
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [timeText, timeType, userTimeZone]);
+  
   // Handle text input change
   const handleTimeTextChange = (e) => {
     setTimeText(e.target.value);
   };
-
+  
   // Apply time settings and close modal
   const handleDone = () => {
-    setTimeValue(timeText);
+    // Use the parsed ISO time if available, otherwise use the text
+    setTimeValue(parsedTime || timeText);
     onDone();
   };
 
@@ -108,7 +173,7 @@ function TimeModal({ timeType, setTimeType, timeValue, setTimeValue, onClose, on
             </label>
           </div>
           
-          {/* Natural language time input */}
+          {/* Time input - no preview messages */}
           <div className="time-input-container">
             <input
               type="text"
@@ -118,6 +183,7 @@ function TimeModal({ timeType, setTimeType, timeValue, setTimeValue, onClose, on
               disabled={timeType === "none"}
               placeholder="e.g. 'tomorrow at 3pm'"
             />
+            {/* No preview area */}
           </div>
         </div>
 
@@ -208,21 +274,24 @@ export function Box({
     adjustTextareaHeight();
   };
 
+  // In handleSave function in Box component
   const handleSave = () => {
     const url = id
       ? `${API_BASE_URL}/api/boxes/${id}`
       : `${API_BASE_URL}/api/boxes`;
     const method = id ? "PUT" : "POST";
     const userId = user?.sub || user?.email;
-  
-    console.log("DEBUG: SAVING BOX:", {
+
+    console.log("Box - Save initiated:", {
+      boxId: id,
       method,
-      userId,
-      content: text,
-      time_type: timeType,
-      time_value: timeValue
+      endpoint: url,
+      contentLength: text.length,
+      timeType,
+      rawTimeValue: timeValue,
+      userTimeZone
     });
-  
+
     fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
@@ -235,7 +304,22 @@ export function Box({
     })
       .then((res) => res.json())
       .then((data) => {
-        console.log("DEBUG: SAVE RESPONSE:", data);
+        console.log("Box - Server response:", data);
+        if (data.box && data.box.time_value) {
+          console.log("Box - Parsed time returned:", data.box.time_value);
+          // Try to format it to see what's being displayed
+          try {
+            const displayDate = new Date(data.box.time_value);
+            console.log("Box - Formatted for display:", displayDate.toString());
+            console.log("Box - Year:", displayDate.getFullYear());
+            console.log("Box - Month:", displayDate.getMonth() + 1);
+            console.log("Box - Day:", displayDate.getDate());
+            console.log("Box - Hours:", displayDate.getHours());
+          } catch (e) {
+            console.error("Box - Error formatting date:", e);
+          }
+        }
+        
         if (data.success) {
           setSavedText(text);
           onSave(id, data.box);
@@ -274,74 +358,50 @@ export function Box({
   };
 
   // Render the local-time display
-const renderTimeDisplay = () => {
-  if (!timeValue || timeType === "none") return null;
+  const renderTimeDisplay = () => {
+    if (!timeValue || timeType === "none") return null;
 
-  console.log("============== TIME DISPLAY DEBUG ==============");
-  console.log("Input timeValue:", timeValue);
-  console.log("Input userTimeZone:", userTimeZone);
-  
-  // 1. Parse as JavaScript Date
-  const jsDate = new Date(timeValue);
-  console.log("JS Date object:", jsDate);
-  console.log("JS Date toString():", jsDate.toString());
-  console.log("JS Date toISOString():", jsDate.toISOString());
-  console.log("JS Date toLocaleString():", jsDate.toLocaleString());
-  
-  // 2. Time parts
-  console.log("UTC Hours:", jsDate.getUTCHours());
-  console.log("Local Hours:", jsDate.getHours());
-  console.log("Timezone offset (minutes):", jsDate.getTimezoneOffset());
-  
-  // 3. Browser timezone info
-  console.log("Browser timezone:", Intl.DateTimeFormat().resolvedOptions().timeZone);
-  
-  // 4. Try as Luxon DateTime
-  try {
-    const luxonUtc = DateTime.fromISO(timeValue, { zone: "UTC" });
-    console.log("Luxon UTC:", luxonUtc.toString());
+    // Check if timeValue is a natural language string or an ISO date
+    const isISOString = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(timeValue);
     
-    const userTz = userTimeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const luxonLocal = luxonUtc.setZone(userTz);
-    console.log("Luxon Local:", luxonLocal.toString());
+    if (!isISOString) {
+      // If it's natural language, just display the raw value
+      return (
+        <div className="time-display">
+          <span className="pending-time">{timeValue}</span>
+        </div>
+      );
+    }
     
-    // Simple formatted time for display
-    const formattedTime = jsDate.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-    
-    console.log("Formatted time:", formattedTime);
-    console.log("===============================================");
-    
-    return (
-      <div className="time-display">
-        {timeType === "deadline" ? "Due: " : "Scheduled: "}
-        {formattedTime}
-        <div className="timezone-info">({userTz})</div>
-      </div>
-    );
-  } catch (error) {
-    console.error("Error in Luxon processing:", error);
-    
-    // Fallback to basic formatting
-    const fallbackFormat = jsDate.toLocaleString();
-    console.log("Fallback format:", fallbackFormat);
-    console.log("===============================================");
-    
-    return (
-      <div className="time-display">
-        {timeType === "deadline" ? "Due: " : "Scheduled: "}
-        {fallbackFormat}
-        <div className="timezone-info">({userTimeZone || "browser default"})</div>
-      </div>
-    );
-  }
-};
+    try {
+      // Parse as JavaScript Date
+      const jsDate = new Date(timeValue);
+      
+      // Formatted time for display (without year)
+      const formattedTime = jsDate.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      return (
+        <div className="time-display">
+          {formattedTime}
+        </div>
+      );
+    } catch (error) {
+      console.error("Error in time processing:", error);
+      
+      // Fallback for any errors
+      return (
+        <div className="time-display">
+          {timeValue}
+        </div>
+      );
+    }
+  };
 
   return (
     <div className="box-container">
@@ -421,6 +481,7 @@ const renderTimeDisplay = () => {
             onClose={() => setShowTimeSelector(false)}
             onDone={handleTimeSettingsDone}
             boxId={id}
+            userTimeZone={userTimeZone}
           />
         )}
       </div>
