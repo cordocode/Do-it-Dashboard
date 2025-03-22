@@ -20,6 +20,9 @@ function DashboardPage({ user, setUser }) {
   const [userDbTimeZone, setUserDbTimeZone] = useState('UTC');
   const navigate = useNavigate();
 
+  const detectedTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  console.log("PRODUCTION TEST - Detected timezone:", detectedTimeZone);
+
   // 1) Fetch the user's name from the database
   // In dashboard_page.js
 useEffect(() => {
