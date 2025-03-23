@@ -1,6 +1,10 @@
 /***********************************
  * server.js — Full, combined code
  ***********************************/
+
+// Force UTC timezone for all date operations in Node
+process.env.TZ = 'UTC';
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -38,6 +42,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+/* ===============================================
+   Root route for Elastic Beanstalk health checks
+=============================================== */
+app.get('/', (req, res) => {
+  res.send('Server is running');
+});
 
 /* ===============================================
    1) GET user profile — create user if needed
@@ -167,13 +178,12 @@ app.get('/db-test', async (req, res) => {
 });
 
 /* ===============================================
-   5) Simple time parser
+   5) Simple time parser 
 =============================================== */
 app.post('/api/parse-time', async (req, res) => {
   try {
     const { timeString, timeZone } = req.body;
     
-    // Added logging
     console.log("PARSE-TIME - Request received:", {
       timeString,
       timeZone,
@@ -188,7 +198,6 @@ app.post('/api/parse-time', async (req, res) => {
     const userTimeZone = timeZone || 'UTC';
     const nowInUserTZ = DateTime.now().setZone(userTimeZone);
     
-    // Added logging
     console.log("PARSE-TIME - Reference time in user timezone:", {
       userTimeZone,
       nowInUserTZ: nowInUserTZ.toString(),
@@ -204,7 +213,6 @@ app.post('/api/parse-time', async (req, res) => {
       const hourMatch = timeString.match(/at (\d{1,2})/);
       if (hourMatch && parseInt(hourMatch[1]) < 7) {
         processedTimeString = timeString.replace(/at (\d{1,2})/, 'at $1pm');
-        // Added logging
         console.log("PARSE-TIME - Applied PM inference:", {
           original: timeString,
           processed: processedTimeString
@@ -212,13 +220,16 @@ app.post('/api/parse-time', async (req, res) => {
       }
     }
     
+    // Parse the time using chrono-node
     const parsedResults = chrono.parse(processedTimeString, nowInUserTZ.toJSDate(), { forwardDate: true });
-    // Added logging
     console.log("PARSE-TIME - Chrono parse results:", JSON.stringify(parsedResults, null, 2));
     
     if (parsedResults.length > 0) {
-      const parsedDate = parsedResults[0].start.date();
-      // Added logging
+      // Get the parsed components directly from the chrono result
+      const components = parsedResults[0].start;
+      
+      // Log the raw date for debugging
+      const parsedDate = components.date();
       console.log("PARSE-TIME - Raw parsed date:", {
         raw: parsedDate.toString(),
         iso: parsedDate.toISOString(),
@@ -227,19 +238,36 @@ app.post('/api/parse-time', async (req, res) => {
         day: parsedDate.getDate(),
         hours: parsedDate.getHours(),
         minutes: parsedDate.getMinutes(),
-        asJSDate: parsedDate instanceof Date
       });
       
-      // Fix year if needed
-      if (parsedDate.getFullYear() !== nowInUserTZ.year) {
-        parsedDate.setFullYear(nowInUserTZ.year);
-        // Added logging
-        console.log("PARSE-TIME - Fixed year:", parsedDate.toString());
+      // Extract components directly from chrono results
+      // This is the key fix - we don't use the JS Date object directly
+      const year = components.get('year');
+      const month = components.get('month');
+      const day = components.get('day');
+      let hour = components.get('hour') || 0;
+      const minute = components.get('minute') || 0;
+      const second = components.get('second') || 0;
+      const meridiem = components.get('meridiem');
+      
+      // Adjust hour based on meridiem if available
+      if (meridiem === 1 && hour < 12) {
+        hour += 12; // Convert to 24-hour format (1pm = 13)
+      } else if (meridiem === 0 && hour === 12) {
+        hour = 0; // 12am = 0 in 24-hour format
       }
       
-      // Convert to DateTime and handle timezone (** this is your fix **)
-      const dtLocal = DateTime.fromJSDate(parsedDate, { zone: userTimeZone });
-      // Added logging
+      // Create a datetime in the user's timezone from the parsed components
+      const dtLocal = DateTime.fromObject({
+        year: year,
+        month: month,
+        day: day,
+        hour: hour,
+        minute: minute,
+        second: second
+      }, { zone: userTimeZone });
+      
+      // Log this for debugging
       console.log("PARSE-TIME - As Luxon DateTime in user timezone:", {
         dtLocal: dtLocal.toString(),
         formatted: dtLocal.toFormat('yyyy-MM-dd HH:mm:ss ZZZZ'),
@@ -248,7 +276,6 @@ app.post('/api/parse-time', async (req, res) => {
       
       // Convert to UTC
       const dtUTC = dtLocal.toUTC();
-      // Added logging
       console.log("PARSE-TIME - Converted to UTC:", {
         dtUTC: dtUTC.toString(),
         formatted: dtUTC.toFormat('yyyy-MM-dd HH:mm:ss ZZZZ'),
@@ -256,7 +283,6 @@ app.post('/api/parse-time', async (req, res) => {
       });
       
       parsedTimestamp = dtUTC.toISO();
-      // Added logging
       console.log("PARSE-TIME - Final ISO timestamp:", parsedTimestamp);
       
       res.json({
@@ -281,6 +307,13 @@ app.post('/api/parse-time', async (req, res) => {
 /* ===============================================
    6) Boxes CRUD
 =============================================== */
+
+// Test endpoint for timezone debugging
+app.get('/timezone-debug', (req, res) => {
+  const testTime = '2025-03-24T21:00:00.000Z';
+  console.log('DEBUG - About to send test time:', testTime);
+  res.json({ testTime });
+});
 
 /**
  * POST /api/boxes
@@ -316,13 +349,13 @@ app.post('/api/boxes', async (req, res) => {
       console.log("POST /api/boxes - Is ISO format?", isISODate);
 
       if (isISODate) {
-        // Interpret the ISO string as local user time, then convert to UTC
+        // For ISO strings, interpret as user's local time and convert to UTC
         parsedTimestamp = DateTime
-          .fromISO(time_value, { zone: userTimeZone })
+          .fromISO(time_value)
+          .setZone(userTimeZone, { keepLocalTime: true })
           .toUTC()
           .toISO();
         console.log("POST /api/boxes - Interpreted ISO as user local, final UTC:", parsedTimestamp);
-
       } else {
         // Natural language parse
         const nowInUserTZ = DateTime.now().setZone(userTimeZone);
@@ -332,19 +365,38 @@ app.post('/api/boxes', async (req, res) => {
         console.log('POST /api/boxes - Raw chrono-node results:', JSON.stringify(parsedResults, null, 2));
 
         if (parsedResults.length > 0) {
-          const userLocalDate = parsedResults[0].start.date();
-          // If chrono picks a weird year, fix it
-          if (userLocalDate.getFullYear() !== nowInUserTZ.year) {
-            userLocalDate.setFullYear(nowInUserTZ.year);
+          // Extract components directly from chrono results
+          const components = parsedResults[0].start;
+          const year = components.get('year');
+          const month = components.get('month');
+          const day = components.get('day');
+          let hour = components.get('hour') || 0;
+          const minute = components.get('minute') || 0;
+          const second = components.get('second') || 0;
+          const meridiem = components.get('meridiem');
+          
+          // Adjust hour based on meridiem if available
+          if (meridiem === 1 && hour < 12) {
+            hour += 12; // Convert to 24-hour format (1pm = 13)
+          } else if (meridiem === 0 && hour === 12) {
+            hour = 0; // 12am = 0 in 24-hour format
           }
-
-          const dtLocal = DateTime.fromJSDate(userLocalDate, { zone: userTimeZone });
+          
+          // Create a datetime in the user's timezone
+          const dtLocal = DateTime.fromObject({
+            year: year,
+            month: month,
+            day: day,
+            hour: hour,
+            minute: minute,
+            second: second
+          }, { zone: userTimeZone });
+          
           parsedTimestamp = dtLocal.toUTC().toISO();
 
           console.log('POST /api/boxes - Natural language parse, final UTC:', parsedTimestamp);
         } else {
           console.log('POST /api/boxes - Failed to parse time:', time_value);
-          // Decide how you want to handle this
         }
       }
       
@@ -454,13 +506,13 @@ app.put('/api/boxes/:id', async (req, res) => {
       console.log("PUT /api/boxes/:id - Is ISO format?", isISODate);
 
       if (isISODate) {
-        // Interpret the ISO string in the user's local zone, then convert to UTC
+        // For ISO strings, interpret as user's local time and convert to UTC
         parsedTimestamp = DateTime
-          .fromISO(time_value, { zone: userTimeZone })
+          .fromISO(time_value)
+          .setZone(userTimeZone, { keepLocalTime: true })
           .toUTC()
           .toISO();
         console.log("PUT /api/boxes/:id - Interpreted ISO as user local, final UTC:", parsedTimestamp);
-
       } else {
         // Natural language parse
         const nowInUserTZ = DateTime.now().setZone(userTimeZone);
@@ -470,11 +522,33 @@ app.put('/api/boxes/:id', async (req, res) => {
         console.log("PUT /api/boxes/:id - Raw chrono-node results:", parsedResults);
 
         if (parsedResults.length > 0) {
-          const userLocalDate = parsedResults[0].start.date();
-          if (userLocalDate.getFullYear() !== nowInUserTZ.year) {
-            userLocalDate.setFullYear(nowInUserTZ.year);
+          // Extract components directly from chrono results
+          const components = parsedResults[0].start;
+          const year = components.get('year');
+          const month = components.get('month');
+          const day = components.get('day');
+          let hour = components.get('hour') || 0;
+          const minute = components.get('minute') || 0;
+          const second = components.get('second') || 0;
+          const meridiem = components.get('meridiem');
+          
+          // Adjust hour based on meridiem if available
+          if (meridiem === 1 && hour < 12) {
+            hour += 12; // Convert to 24-hour format (1pm = 13)
+          } else if (meridiem === 0 && hour === 12) {
+            hour = 0; // 12am = 0 in 24-hour format
           }
-          const dtLocal = DateTime.fromJSDate(userLocalDate, { zone: userTimeZone });
+          
+          // Create a datetime in the user's timezone
+          const dtLocal = DateTime.fromObject({
+            year: year,
+            month: month,
+            day: day,
+            hour: hour,
+            minute: minute,
+            second: second
+          }, { zone: userTimeZone });
+          
           parsedTimestamp = dtLocal.toUTC().toISO();
 
           console.log("PUT /api/boxes/:id - Natural language parse, final UTC:", parsedTimestamp);
