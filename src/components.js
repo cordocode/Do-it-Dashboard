@@ -3,15 +3,16 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
-import { useNavigate } from 'react-router-dom';
-import { DateTime } from 'luxon';
-import './css/the_box.css';
-import './css/time.css';
+import { useNavigate } from "react-router-dom";
+import { DateTime } from "luxon";
+import "./css/the_box.css";
+import "./css/time.css";
 
 // If your code references this base URL, keep it. If not, remove it.
-const API_BASE_URL = process.env.NODE_ENV === 'development'
-  ? 'http://localhost:8080'
-  : 'https://backend.formybuddy.com';
+const API_BASE_URL =
+  process.env.NODE_ENV === "development"
+    ? "http://localhost:8080"
+    : "https://backend.formybuddy.com";
 
 /* ========================================
    🟢 GOOGLE LOGIN BUTTON COMPONENT
@@ -20,7 +21,11 @@ const ClientID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 export function GoogleLoginButton({ onSuccess, onError }) {
   if (!ClientID) {
-    return <div className="google-login-error">Error: Google Client ID not found.</div>;
+    return (
+      <div className="google-login-error">
+        Error: Google Client ID not found.
+      </div>
+    );
   }
 
   return (
@@ -38,8 +43,12 @@ export function GoogleLoginButton({ onSuccess, onError }) {
 export function ConfirmationPopup({ onConfirm, onCancel }) {
   return (
     <div className="confirmation-popup">
-      <button className="confirmation-button" onClick={onConfirm}>Confirm</button>
-      <button className="confirmation-button" onClick={onCancel}>Cancel</button>
+      <button className="confirmation-button" onClick={onConfirm}>
+        Confirm
+      </button>
+      <button className="confirmation-button" onClick={onCancel}>
+        Cancel
+      </button>
     </div>
   );
 }
@@ -47,68 +56,73 @@ export function ConfirmationPopup({ onConfirm, onCancel }) {
 /* ========================================
    🟢 TIME SELECTOR MODAL COMPONENT
 ======================================== */
-
-function TimeModal({ timeType, setTimeType, timeValue, setTimeValue, onClose, onDone, boxId, userTimeZone }) {
+function TimeModal({
+  timeType,
+  setTimeType,
+  timeValue,
+  setTimeValue,
+  onClose,
+  onDone,
+  boxId,
+  userTimeZone,
+}) {
   // Set up initial state using natural language input or format existing timestamp
   const [timeText, setTimeText] = useState("");
   const [parsedTime, setParsedTime] = useState(null);
-  
-// In TimeModal component
-useEffect(() => {
-  if (timeType === "none" || !timeText) {
-    setParsedTime(null);
-    return;
-  }
-  
-  // Don't reprocess if it's already an ISO timestamp (for editing)
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(timeText)) {
-    return;
-  }
-  
-  // Wait a brief moment after typing stops
-  const timer = setTimeout(() => {
-    // Added logging
-    console.log("TimeModal - About to parse time:", {
-      timeText,
-      timeType,
-      userTimeZone,
-      currentDate: new Date().toString(),
-      currentISOString: new Date().toISOString()
-    });
-    
-    fetch(`${API_BASE_URL}/api/parse-time`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        timeString: timeText,
-        timeZone: userTimeZone
-      })
-    })
-    .then(res => res.json())
-    .then(data => {
-      // Added logging
-      console.log("TimeModal - Server parse response:", {
-        success: data.success,
-        input: data.input,
-        parsed: data.parsed,
-        display: data.display,
-        nowUTC: new Date().toISOString()
+
+  useEffect(() => {
+    if (timeType === "none" || !timeText) {
+      setParsedTime(null);
+      return;
+    }
+
+    // Don't reprocess if it's already an ISO timestamp (for editing)
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(timeText)) {
+      return;
+    }
+
+    // Wait a brief moment after typing stops
+    const timer = setTimeout(() => {
+      console.log("TimeModal - About to parse time:", {
+        timeText,
+        timeType,
+        userTimeZone,
+        currentDate: new Date().toString(),
+        currentISOString: new Date().toISOString(),
       });
-      
-      if (data.success) {
-        setParsedTime(data.parsed);
-      } else {
-        setParsedTime(null);
-      }
-    })
-    .catch(err => {
-      console.error("Error parsing time:", err);
-    });
-  }, 500);
-  
-  return () => clearTimeout(timer);
-}, [timeText, timeType, userTimeZone]);
-  
+
+      fetch(`${API_BASE_URL}/api/parse-time`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          timeString: timeText,
+          timeZone: userTimeZone,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          console.log("TimeModal - Server parse response:", {
+            success: data.success,
+            input: data.input,
+            parsed: data.parsed,
+            display: data.display,
+            nowUTC: new Date().toISOString(),
+          });
+
+          if (data.success) {
+            setParsedTime(data.parsed);
+          } else {
+            setParsedTime(null);
+          }
+        })
+        .catch((err) => {
+          console.error("Error parsing time:", err);
+        });
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [timeText, timeType, userTimeZone]);
+
   // Handle text input change
   const handleTimeTextChange = (e) => {
     console.log("TimeModal - User input changed:", {
@@ -116,16 +130,25 @@ useEffect(() => {
       previousValue: timeText,
       timeType,
       detectedBrowserTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      userTimeZone
+      userTimeZone,
     });
     setTimeText(e.target.value);
   };
-  
+
   const handleDone = () => {
     const finalTime = parsedTime || timeText;
-    console.log("TimeModal: Final time value to be set:", finalTime);
+    console.log("TimeModal - Finalizing time:", {
+      timeType,
+      finalTime,
+      parsedTime,
+      timeText,
+    });
+    // Update local state if needed
     setTimeValue(finalTime);
-    onDone();
+    // Pass the final time directly to the onDone callback
+    if (onDone) {
+      onDone(finalTime);
+    }
   };
 
   return createPortal(
@@ -134,38 +157,40 @@ useEffect(() => {
       <div className="time-selector">
         <div className="time-selector-header">
           <h4>Time Settings</h4>
-          <button className="time-close-button" onClick={onClose}>×</button>
+          <button className="time-close-button" onClick={onClose}>
+            ×
+          </button>
         </div>
-        
+
         <div className="time-selector-body">
           {/* Horizontal radio buttons */}
           <div className="time-type-selector-horizontal">
             <label className={timeType === "none" ? "selected" : ""}>
               <input
                 type="radio"
-                name={`timeType-${boxId || 'new'}`}
+                name={`timeType-${boxId || "new"}`}
                 value="none"
                 checked={timeType === "none"}
                 onChange={() => setTimeType("none")}
               />
               <span>No Time</span>
             </label>
-            
+
             <label className={timeType === "scheduled" ? "selected" : ""}>
               <input
                 type="radio"
-                name={`timeType-${boxId || 'new'}`}
+                name={`timeType-${boxId || "new"}`}
                 value="scheduled"
                 checked={timeType === "scheduled"}
                 onChange={() => setTimeType("scheduled")}
               />
               <span>Scheduled</span>
             </label>
-            
+
             <label className={timeType === "deadline" ? "selected" : ""}>
               <input
                 type="radio"
-                name={`timeType-${boxId || 'new'}`}
+                name={`timeType-${boxId || "new"}`}
                 value="deadline"
                 checked={timeType === "deadline"}
                 onChange={() => setTimeType("deadline")}
@@ -173,8 +198,8 @@ useEffect(() => {
               <span>Deadline</span>
             </label>
           </div>
-          
-          {/* Time input - no preview messages */}
+
+          {/* Time input */}
           <div className="time-input-container">
             <input
               type="text"
@@ -184,13 +209,16 @@ useEffect(() => {
               disabled={timeType === "none"}
               placeholder="e.g. 'tomorrow at 3pm'"
             />
-            {/* No preview area */}
           </div>
         </div>
 
         <div className="time-modal-actions">
-          <button className="time-cancel-button" onClick={onClose}>Cancel</button>
-          <button className="time-save-button" onClick={handleDone}>Done</button>
+          <button className="time-cancel-button" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="time-save-button" onClick={handleDone}>
+            Done
+          </button>
         </div>
       </div>
     </>,
@@ -203,9 +231,9 @@ useEffect(() => {
 ======================================== */
 function StatusIndicator({ status }) {
   const statusClass = {
-    unsaved: 'status-unsaved',
-    modified: 'status-modified',
-    saved: 'status-saved',
+    unsaved: "status-unsaved",
+    modified: "status-modified",
+    saved: "status-saved",
   }[status];
 
   return <div className={`status-indicator ${statusClass}`} />;
@@ -222,14 +250,13 @@ export function Box({
   initialContent = "",
   initialTimeType = "none",
   initialTimeValue = "",
-  userTimeZone, 
+  userTimeZone,
 }) {
-
   console.log("DEBUG: BOX INITIALIZED:", {
     id,
     initialTimeType,
     initialTimeValue,
-    userTimeZone
+    userTimeZone,
   });
 
   const [text, setText] = useState(initialContent);
@@ -263,7 +290,8 @@ export function Box({
       }
     }
     document.addEventListener("keydown", handleEscapeKey);
-    return () => document.removeEventListener("keydown", handleEscapeKey);
+    return () =>
+      document.removeEventListener("keydown", handleEscapeKey);
   }, [showTimeSelector]);
 
   const adjustTextareaHeight = () => {
@@ -279,26 +307,28 @@ export function Box({
     adjustTextareaHeight();
   };
 
-  // In handleSave function in Box component
-  const handleSave = () => {
+  // Updated handleSave accepts an optional finalTimeValue parameter.
+  const handleSave = (finalTimeValue) => {
+    // Use the passed finalTimeValue if provided, else fall back to the state value
+    const effectiveTimeValue =
+      finalTimeValue !== undefined ? finalTimeValue : timeValue;
     const url = id
       ? `${API_BASE_URL}/api/boxes/${id}`
       : `${API_BASE_URL}/api/boxes`;
     const method = id ? "PUT" : "POST";
     const userId = user?.sub || user?.email;
-  
-    // Added logging
+
     console.log("Box - About to save:", {
       boxId: id,
       method: id ? "PUT" : "POST",
       endpoint: url,
       contentLength: text.length,
       timeType,
-      timeValue,
+      timeValue: effectiveTimeValue,
       userTimeZone,
-      currentBrowserTime: new Date().toString()
+      currentBrowserTime: new Date().toString(),
     });
-  
+
     fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
@@ -306,7 +336,8 @@ export function Box({
         userId,
         content: text,
         time_type: timeType,
-        time_value: timeValue === "" ? null : timeValue,
+        time_value:
+          effectiveTimeValue === "" ? null : effectiveTimeValue,
       }),
     })
       .then((res) => res.json())
@@ -314,7 +345,6 @@ export function Box({
         console.log("Box - Server response:", data);
         if (data.box && data.box.time_value) {
           console.log("Box - Parsed time returned:", data.box.time_value);
-          // Try to format it to see what's being displayed
           try {
             const displayDate = new Date(data.box.time_value);
             console.log("Box - Formatted for display:", displayDate.toString());
@@ -326,7 +356,7 @@ export function Box({
             console.error("Box - Error formatting date:", e);
           }
         }
-        
+
         if (data.success) {
           setSavedText(text);
           onSave(id, data.box);
@@ -346,14 +376,6 @@ export function Box({
     setShowTimeSelector(!showTimeSelector);
   };
 
-  const handleTimeSettingsDone = () => {
-    setShowTimeSelector(false);
-    // Auto-save after setting time
-    if (getStatus() !== "saved" || timeType !== "none") {
-      handleSave();
-    }
-  };
-
   // Render the "Scheduled" or "Due" badge
   const renderTimeTypeBadge = () => {
     if (timeType === "none") return null;
@@ -370,39 +392,28 @@ export function Box({
 
     // Check if timeValue is a natural language string or an ISO date
     const isISOString = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(timeValue);
-    
+
     if (!isISOString) {
-      // If it's natural language, just display the raw value
       return (
         <div className="time-display">
           <span className="pending-time">{timeValue}</span>
         </div>
       );
     }
-    
+
     try {
-      // Parse as JavaScript Date
       const jsDate = new Date(timeValue);
-      
-      // Formatted time for display (without year)
-      const formattedTime = jsDate.toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
+      const formattedTime = jsDate.toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
         hour12: true,
-        timeZone: userTimeZone
+        timeZone: userTimeZone,
       });
-      
-      return (
-        <div className="time-display">
-          {formattedTime}
-        </div>
-      );
+      return <div className="time-display">{formattedTime}</div>;
     } catch (error) {
       console.error("Error in time processing:", error);
-      
-      // Fallback for any errors
       return (
         <div className="time-display">
           {timeValue}
@@ -436,7 +447,7 @@ export function Box({
         <div className="button-group">
           <button
             className={`save-button ${getStatus() === "saved" ? "saved" : ""}`}
-            onClick={handleSave}
+            onClick={() => handleSave()}
           >
             {getStatus() === "saved" ? "Saved" : "Save"}
           </button>
@@ -469,7 +480,10 @@ export function Box({
         </div>
 
         {/* Delete button */}
-        <button className="delete-button" onClick={() => setShowConfirmation(true)}>
+        <button
+          className="delete-button"
+          onClick={() => setShowConfirmation(true)}
+        >
           Delete
         </button>
 
@@ -487,7 +501,12 @@ export function Box({
             timeValue={timeValue}
             setTimeValue={setTimeValue}
             onClose={() => setShowTimeSelector(false)}
-            onDone={handleTimeSettingsDone}
+            onDone={(finalValue) => {
+              console.log("Box - Received final value from modal:", finalValue);
+              setTimeValue(finalValue);
+              setShowTimeSelector(false);
+              handleSave(finalValue);
+            }}
             boxId={id}
             userTimeZone={userTimeZone}
           />
