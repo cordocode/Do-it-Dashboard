@@ -7,7 +7,7 @@ require('dotenv').config();
 
 const { Pool } = require('pg');
 
-/** Decide whether to use SSL in production. */
+// Decide whether to use SSL in production.
 function getSSLConfig() {
   if (process.env.NODE_ENV === 'development') {
     // local dev typically doesn't use SSL
@@ -18,7 +18,7 @@ function getSSLConfig() {
   }
 }
 
-/** Create your Postgres connection pool. */
+// Create your Postgres connection pool.
 const pool = new Pool({
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
@@ -28,11 +28,11 @@ const pool = new Pool({
   ssl: getSSLConfig(),
 });
 
+// Ensure each new DB connection uses UTC
 pool.on('connect', async (client) => {
   await client.query('SET timezone = "UTC"');
 });
 
-/** Initialize Express. */
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -163,6 +163,9 @@ app.get('/db-test', async (req, res) => {
   }
 });
 
+const chrono = require('chrono-node');
+const { DateTime } = require('luxon');
+
 // Simple endpoint that only parses time strings
 app.post('/api/parse-time', async (req, res) => {
   try {
@@ -175,7 +178,6 @@ app.post('/api/parse-time', async (req, res) => {
     const userTimeZone = timeZone || 'UTC';
     const nowInUserTZ = DateTime.now().setZone(userTimeZone);
     
-    // Use the same logic from the SMS flow
     let parsedTimestamp = null;
     
     // Handle "at X" expressions for any time phrase
@@ -221,10 +223,6 @@ app.post('/api/parse-time', async (req, res) => {
    5) Boxes CRUD
 =============================================== */
 
-// CREATE a new box
-const chrono = require('chrono-node');
-const { DateTime } = require('luxon');
-
 // Test endpoint for time parsing
 app.post('/api/test-time-parsing', async (req, res) => {
   try {
@@ -245,7 +243,7 @@ app.post('/api/test-time-parsing', async (req, res) => {
       regularParsed = regularResults[0].start.date().toISOString();
     }
     
-    // 2. With PM inference for "at X" times (like server.js does for "tonight")
+    // 2. With PM inference for "at X" times
     let timeWithPmInference = timeString;
     if (/at \d{1,2}(:00)?$/.test(timeString)) {
       const hourMatch = timeString.match(/at (\d{1,2})/);
@@ -312,14 +310,15 @@ app.post('/api/boxes', async (req, res) => {
     const { userId, content, time_type, time_value, reminder_offset } = req.body;
     
     console.log("POST /api/boxes - Request received:", {
-      userId: userId ? userId.substring(0, 5) + "..." : null, // Truncate for privacy
+      userId: userId ? userId.substring(0, 5) + "..." : null,
       contentLength: content ? content.length : 0,
       time_type,
       raw_time_value: time_value,
-      source: req.get('User-Agent'), // Help identify if request is from web or API
+      source: req.get('User-Agent'),
       reminder_offset
     });
 
+    // Retrieve user's timezone or default to UTC
     const userResult = await pool.query('SELECT time_zone FROM users WHERE user_id = $1', [userId]);
     const userTimeZone = userResult.rows[0]?.time_zone || 'UTC';
     console.log('POST /api/boxes - User timezone:', userTimeZone);
@@ -328,27 +327,29 @@ app.post('/api/boxes', async (req, res) => {
 
     if (time_value && time_value !== 'none') {
       console.log("POST /api/boxes - Processing time:", time_value);
-      
-      // First check if time_value is already a valid ISO string
+
+      // Check if time_value is already an ISO string
       const isISODate = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(time_value);
       console.log("POST /api/boxes - Is ISO format?", isISODate);
       
       if (isISODate) {
-        // It's already formatted as ISO, just ensure it's in UTC
-        parsedTimestamp = DateTime.fromISO(time_value).toUTC().toISO();
+        // CHANGED: Convert from possibly local offset → UTC
+        parsedTimestamp = DateTime
+          .fromISO(time_value)
+          .toUTC()
+          .toISO();
         console.log('POST /api/boxes - Already ISO format - converted to UTC:', parsedTimestamp);
+
       } else {
-        // Parse natural language time
+        // Not ISO => parse natural language time
         const nowInUserTZ = DateTime.now().setZone(userTimeZone);
         console.log('POST /api/boxes - Reference time (user TZ):', nowInUserTZ.toString());
         console.log('POST /api/boxes - Reference year:', nowInUserTZ.year);
         console.log('POST /api/boxes - Reference month:', nowInUserTZ.month);
         console.log('POST /api/boxes - Reference day:', nowInUserTZ.day);
 
-        // Enhanced time parsing with better handling for various scenarios
         let timeString = time_value;
         
-        // Handle "at X" expressions for any time phrase (not just tonight)
         if (/at \d{1,2}(:00)?$/.test(time_value)) {
           const hourMatch = time_value.match(/at (\d{1,2})/);
           if (hourMatch && parseInt(hourMatch[1]) < 7) {
@@ -357,7 +358,6 @@ app.post('/api/boxes', async (req, res) => {
           }
         }
 
-        // Log what is being passed to chrono-node
         console.log('POST /api/boxes - Passing to chrono-node:', {
           timeString,
           refDateObj: nowInUserTZ.toJSDate(),
@@ -377,19 +377,19 @@ app.post('/api/boxes', async (req, res) => {
           console.log('POST /api/boxes - Parsed day:', userLocalDate.getDate());
           console.log('POST /api/boxes - Parsed hours:', userLocalDate.getHours());
           
-          // Check for year anomalies and fix if needed
+          // If chrono picks a weird year, fix it
           if (userLocalDate.getFullYear() !== nowInUserTZ.year) {
             console.log('POST /api/boxes - Year mismatch detected!');
             console.log('POST /api/boxes - Original year:', userLocalDate.getFullYear());
-            
-            // Force the current year
             userLocalDate.setFullYear(nowInUserTZ.year);
-            
             console.log('POST /api/boxes - Corrected year:', userLocalDate.getFullYear());
           }
 
-          // Convert to ISO string for storage
-          parsedTimestamp = userLocalDate.toISOString();
+          // CHANGED: Instead of userLocalDate.toISOString(), do local->UTC with Luxon
+          const dtLocal = DateTime.fromJSDate(userLocalDate, { zone: userTimeZone });
+          const dtUtc = dtLocal.toUTC();
+          parsedTimestamp = dtUtc.toISO();
+
           console.log('POST /api/boxes - Final parsed timestamp (UTC):', parsedTimestamp);
         } else {
           console.log('POST /api/boxes - Failed to parse time:', time_value);
@@ -404,7 +404,6 @@ app.post('/api/boxes', async (req, res) => {
       [userId, content, time_type || 'none', parsedTimestamp, reminder_offset || 0]
     );
 
-    // Log what's being stored in DB and returned to client
     console.log('POST /api/boxes - Stored in database:', {
       time_type: result.rows[0].time_type,
       time_value: result.rows[0].time_value
@@ -471,14 +470,11 @@ app.put('/api/boxes/:id', async (req, res) => {
         const userTimeZone = userResult.rows[0]?.time_zone || 'UTC';
         console.log('PUT /api/boxes/:id - User timezone:', userTimeZone);
         
-        // Parse natural language using user's timezone as reference
         const nowInUserTZ = DateTime.now().setZone(userTimeZone);
         console.log('PUT /api/boxes/:id - Reference time:', nowInUserTZ.toString());
         
-        // Enhanced time parsing with better handling for various scenarios
         let timeString = time_value;
         
-        // Handle "at X" expressions for any time phrase (not just tonight)
         if (/at \d{1,2}(:00)?$/.test(time_value)) {
           const hourMatch = time_value.match(/at (\d{1,2})/);
           if (hourMatch && parseInt(hourMatch[1]) < 7) {
@@ -499,20 +495,27 @@ app.put('/api/boxes/:id', async (req, res) => {
           if (userLocalDate.getFullYear() !== nowInUserTZ.year) {
             console.log('PUT /api/boxes/:id - Year mismatch detected!');
             console.log('PUT /api/boxes/:id - Original year:', userLocalDate.getFullYear());
-            
-            // Force the current year
             userLocalDate.setFullYear(nowInUserTZ.year);
-            
             console.log('PUT /api/boxes/:id - Corrected year:', userLocalDate.getFullYear());
           }
           
-          // Convert to ISO string for storage
-          parsedTimestamp = userLocalDate.toISOString();
+          // CHANGED: local -> UTC
+          const dtLocal = DateTime.fromJSDate(userLocalDate, { zone: userTimeZone });
+          const dtUtc = dtLocal.toUTC();
+          parsedTimestamp = dtUtc.toISO();
           console.log('PUT /api/boxes/:id - Final parsed timestamp:', parsedTimestamp);
+
         } else {
           console.log('PUT /api/boxes/:id - Failed to parse time:', time_value);
           throw new Error(`Failed to parse: "${time_value}"`);
         }
+      } else {
+        // If already ISO, convert to UTC
+        parsedTimestamp = DateTime
+          .fromISO(time_value)
+          .toUTC()
+          .toISO();
+        console.log('PUT /api/boxes/:id - Already ISO, converting to UTC:', parsedTimestamp);
       }
     }
     
@@ -556,6 +559,13 @@ app.get('/', (req, res) => {
    8) Start Reminder Scheduler
 =============================================== */
 require('./reminder_scheduler');
+
+// Simple endpoint to check server time
+app.get('/check-time', (req, res) => {
+  const serverTime = new Date().toString();
+  console.log('Server time is:', serverTime);
+  res.send(serverTime);
+});
 
 /* ===============================================
    9) Finally, start the server
