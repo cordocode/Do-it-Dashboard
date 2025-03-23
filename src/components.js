@@ -120,10 +120,10 @@ function TimeModal({ timeType, setTimeType, timeValue, setTimeValue, onClose, on
     setTimeText(e.target.value);
   };
   
-  // Apply time settings and close modal
   const handleDone = () => {
-    // Use the parsed ISO time if available, otherwise use the text
-    setTimeValue(parsedTime || timeText);
+    const finalTime = parsedTime || timeText;
+    console.log("TimeModal: Final time value to be set:", finalTime);
+    setTimeValue(finalTime);
     onDone();
   };
 
@@ -236,6 +236,10 @@ export function Box({
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [timeType, setTimeType] = useState(initialTimeType);
   const [timeValue, setTimeValue] = useState(initialTimeValue);
+  useEffect(() => {
+    setTimeType(initialTimeType);
+    setTimeValue(initialTimeValue);
+  }, [initialTimeType, initialTimeValue]);
   const [showTimeSelector, setShowTimeSelector] = useState(false);
   const textareaRef = useRef(null);
 
