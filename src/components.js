@@ -56,6 +56,7 @@ export function ConfirmationPopup({ onConfirm, onCancel }) {
 /* ========================================
    🟢 TIME SELECTOR MODAL COMPONENT
 ======================================== */
+
 function TimeModal({
   timeType,
   setTimeType,
@@ -66,31 +67,49 @@ function TimeModal({
   boxId,
   userTimeZone,
 }) {
-  // Set up initial state using natural language input or format existing timestamp
+  // Track if we're working with natural language text or UTC timestamp
   const [timeText, setTimeText] = useState("");
-  const [parsedTime, setParsedTime] = useState(null);
+  const [parsedResult, setParsedResult] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
+  // Setup display for existing timestamp
+  useEffect(() => {
+    // If we receive a UTC timestamp, show its local time equivalent as placeholder
+    if (timeValue && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(timeValue)) {
+      try {
+        const localTime = new Date(timeValue).toLocaleString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: userTimeZone
+        });
+        // Don't set timeText - keep input empty with placeholder
+        // This prevents double-conversion on save
+      } catch (err) {
+        console.error("Error formatting existing time:", err);
+      }
+    }
+  }, [timeValue, userTimeZone]);
+
+  // Parse natural language input
   useEffect(() => {
     if (timeType === "none" || !timeText) {
-      setParsedTime(null);
+      setParsedResult(null);
       return;
     }
 
-    // Don't reprocess if it's already an ISO timestamp (for editing)
+    // Skip parsing if already an ISO string
     if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(timeText)) {
       return;
     }
 
-    // Wait a brief moment after typing stops
+    // Wait for typing to stop
     const timer = setTimeout(() => {
-      console.log("TimeModal - About to parse time:", {
-        timeText,
-        timeType,
-        userTimeZone,
-        currentDate: new Date().toString(),
-        currentISOString: new Date().toISOString(),
-      });
-
+      setIsProcessing(true);
+      
       fetch(`${API_BASE_URL}/api/parse-time`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -101,54 +120,57 @@ function TimeModal({
       })
         .then((res) => res.json())
         .then((data) => {
-          console.log("TimeModal - Server parse response:", {
-            success: data.success,
-            input: data.input,
-            parsed: data.parsed,
-            display: data.display,
-            nowUTC: new Date().toISOString(),
-          });
-
           if (data.success) {
-            setParsedTime(data.parsed);
+            setParsedResult(data);
           } else {
-            setParsedTime(null);
+            setParsedResult(null);
           }
+          setIsProcessing(false);
         })
         .catch((err) => {
           console.error("Error parsing time:", err);
+          setIsProcessing(false);
         });
     }, 500);
 
     return () => clearTimeout(timer);
   }, [timeText, timeType, userTimeZone]);
 
-  // Handle text input change
   const handleTimeTextChange = (e) => {
-    console.log("TimeModal - User input changed:", {
-      rawInput: e.target.value,
-      previousValue: timeText,
-      timeType,
-      detectedBrowserTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      userTimeZone,
-    });
     setTimeText(e.target.value);
   };
 
   const handleDone = () => {
-    const finalTime = parsedTime || timeText;
-    console.log("TimeModal - Finalizing time:", {
-      timeType,
-      finalTime,
-      parsedTime,
-      timeText,
-    });
-    // Update local state if needed
-    setTimeValue(finalTime);
-    // Pass the final time directly to the onDone callback
-    if (onDone) {
-      onDone(finalTime);
+    // CRITICAL LOGIC: Don't re-convert existing UTC timestamps
+    if (!timeText && timeValue && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(timeValue)) {
+      // User didn't change anything - keep original timestamp
+      onDone(timeValue);
+    } else if (parsedResult && parsedResult.parsed) {
+      // User entered natural language that was successfully parsed
+      onDone(parsedResult.parsed);
+    } else {
+      // User entered text but parsing failed
+      onDone(timeText);
     }
+    
+    onClose();
+  };
+
+  // Calculate placeholder text
+  const getPlaceholder = () => {
+    if (timeValue && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(timeValue)) {
+      // Show local time for existing timestamp
+      return new Date(timeValue).toLocaleString("en-US", {
+        weekday: "short",
+        month: "short", 
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: userTimeZone
+      });
+    }
+    return "e.g. 'tomorrow at 3pm'";
   };
 
   return createPortal(
@@ -157,13 +179,11 @@ function TimeModal({
       <div className="time-selector">
         <div className="time-selector-header">
           <h4>Time Settings</h4>
-          <button className="time-close-button" onClick={onClose}>
-            ×
-          </button>
+          <button className="time-close-button" onClick={onClose}>×</button>
         </div>
 
         <div className="time-selector-body">
-          {/* Horizontal radio buttons */}
+          {/* Radio buttons */}
           <div className="time-type-selector-horizontal">
             <label className={timeType === "none" ? "selected" : ""}>
               <input
@@ -207,8 +227,27 @@ function TimeModal({
               value={timeText}
               onChange={handleTimeTextChange}
               disabled={timeType === "none"}
-              placeholder="e.g. 'tomorrow at 3pm'"
+              placeholder={getPlaceholder()}
             />
+            
+            {/* Preview of parsed time */}
+            {parsedResult && parsedResult.parsed && (
+              <div className="time-preview">
+                Will be set to: {new Date(parsedResult.parsed).toLocaleString("en-US", {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                  hour12: true,
+                  timeZone: userTimeZone
+                })}
+              </div>
+            )}
+            
+            {isProcessing && (
+              <div className="time-processing">Processing...</div>
+            )}
           </div>
         </div>
 
@@ -216,7 +255,11 @@ function TimeModal({
           <button className="time-cancel-button" onClick={onClose}>
             Cancel
           </button>
-          <button className="time-save-button" onClick={handleDone}>
+          <button 
+            className="time-save-button" 
+            onClick={handleDone}
+            disabled={isProcessing && timeType !== "none"}
+          >
             Done
           </button>
         </div>
@@ -242,6 +285,10 @@ function StatusIndicator({ status }) {
 /* ========================================
    🟢 BOX COMPONENT
 ======================================== */
+
+/* ========================================
+   🟢 BOX COMPONENT
+======================================== */
 export function Box({
   id,
   user,
@@ -252,24 +299,19 @@ export function Box({
   initialTimeValue = "",
   userTimeZone,
 }) {
-  console.log("DEBUG: BOX INITIALIZED:", {
-    id,
-    initialTimeType,
-    initialTimeValue,
-    userTimeZone,
-  });
-
   const [text, setText] = useState(initialContent);
   const [savedText, setSavedText] = useState(initialContent);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [timeType, setTimeType] = useState(initialTimeType);
   const [timeValue, setTimeValue] = useState(initialTimeValue);
+  const [showTimeSelector, setShowTimeSelector] = useState(false);
+  const textareaRef = useRef(null);
+
+  // Update state when props change
   useEffect(() => {
     setTimeType(initialTimeType);
     setTimeValue(initialTimeValue);
   }, [initialTimeType, initialTimeValue]);
-  const [showTimeSelector, setShowTimeSelector] = useState(false);
-  const textareaRef = useRef(null);
 
   const getStatus = () => {
     if (savedText === "") return "unsaved";
@@ -307,7 +349,7 @@ export function Box({
     adjustTextareaHeight();
   };
 
-  // Updated handleSave accepts an optional finalTimeValue parameter.
+  // Updated handleSave accepts an optional finalTimeValue parameter
   const handleSave = (finalTimeValue) => {
     // Use the passed finalTimeValue if provided, else fall back to the state value
     const effectiveTimeValue =
@@ -318,15 +360,11 @@ export function Box({
     const method = id ? "PUT" : "POST";
     const userId = user?.sub || user?.email;
 
-    console.log("Box - About to save:", {
+    console.log("Box - Saving:", {
       boxId: id,
       method: id ? "PUT" : "POST",
-      endpoint: url,
-      contentLength: text.length,
       timeType,
-      timeValue: effectiveTimeValue,
-      userTimeZone,
-      currentBrowserTime: new Date().toString(),
+      hasTimeValue: !!effectiveTimeValue
     });
 
     fetch(url, {
@@ -342,21 +380,6 @@ export function Box({
     })
       .then((res) => res.json())
       .then((data) => {
-        console.log("Box - Server response:", data);
-        if (data.box && data.box.time_value) {
-          console.log("Box - Parsed time returned:", data.box.time_value);
-          try {
-            const displayDate = new Date(data.box.time_value);
-            console.log("Box - Formatted for display:", displayDate.toString());
-            console.log("Box - Year:", displayDate.getFullYear());
-            console.log("Box - Month:", displayDate.getMonth() + 1);
-            console.log("Box - Day:", displayDate.getDate());
-            console.log("Box - Hours:", displayDate.getHours());
-          } catch (e) {
-            console.error("Box - Error formatting date:", e);
-          }
-        }
-
         if (data.success) {
           setSavedText(text);
           onSave(id, data.box);
@@ -402,23 +425,20 @@ export function Box({
     }
 
     try {
-      const jsDate = new Date(timeValue);
-      const formattedTime = jsDate.toLocaleString("en-US", {
+      // This is the key part - always use the userTimeZone when formatting
+      const formattedTime = new Date(timeValue).toLocaleString("en-US", {
         month: "short",
         day: "numeric",
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
-        timeZone: userTimeZone,
+        timeZone: userTimeZone || 'UTC'  // Ensure we always use the user's timezone
       });
+      
       return <div className="time-display">{formattedTime}</div>;
     } catch (error) {
       console.error("Error in time processing:", error);
-      return (
-        <div className="time-display">
-          {timeValue}
-        </div>
-      );
+      return <div className="time-display">{timeValue}</div>;
     }
   };
 
@@ -502,7 +522,6 @@ export function Box({
             setTimeValue={setTimeValue}
             onClose={() => setShowTimeSelector(false)}
             onDone={(finalValue) => {
-              console.log("Box - Received final value from modal:", finalValue);
               setTimeValue(finalValue);
               setShowTimeSelector(false);
               handleSave(finalValue);

@@ -349,13 +349,20 @@ app.post('/api/boxes', async (req, res) => {
       console.log("POST /api/boxes - Is ISO format?", isISODate);
 
       if (isISODate) {
-        // For ISO strings, interpret as user's local time and convert to UTC
-        parsedTimestamp = DateTime
-          .fromISO(time_value)
-          .setZone(userTimeZone, { keepLocalTime: true })
-          .toUTC()
-          .toISO();
-        console.log("POST /api/boxes - Interpreted ISO as user local, final UTC:", parsedTimestamp);
+        // FIXED: Check if already in UTC format (has Z suffix)
+        if (time_value.endsWith('Z')) {
+          // It's already UTC - keep it as is
+          parsedTimestamp = time_value;
+          console.log("POST /api/boxes - Already UTC, keeping as is:", parsedTimestamp);
+        } else {
+          // For non-UTC ISO strings, interpret as user's local time and convert to UTC
+          parsedTimestamp = DateTime
+            .fromISO(time_value)
+            .setZone(userTimeZone, { keepLocalTime: true })
+            .toUTC()
+            .toISO();
+          console.log("POST /api/boxes - Converted local ISO to UTC:", parsedTimestamp);
+        }
       } else {
         // Natural language parse
         const nowInUserTZ = DateTime.now().setZone(userTimeZone);
@@ -506,13 +513,20 @@ app.put('/api/boxes/:id', async (req, res) => {
       console.log("PUT /api/boxes/:id - Is ISO format?", isISODate);
 
       if (isISODate) {
-        // For ISO strings, interpret as user's local time and convert to UTC
-        parsedTimestamp = DateTime
-          .fromISO(time_value)
-          .setZone(userTimeZone, { keepLocalTime: true })
-          .toUTC()
-          .toISO();
-        console.log("PUT /api/boxes/:id - Interpreted ISO as user local, final UTC:", parsedTimestamp);
+        // FIXED: Check if already in UTC format (has Z suffix)
+        if (time_value.endsWith('Z')) {
+          // It's already UTC - keep it as is
+          parsedTimestamp = time_value;
+          console.log("PUT /api/boxes/:id - Already UTC, keeping as is:", parsedTimestamp);
+        } else {
+          // For non-UTC ISO strings, interpret as user's local time and convert to UTC
+          parsedTimestamp = DateTime
+            .fromISO(time_value)
+            .setZone(userTimeZone, { keepLocalTime: true })
+            .toUTC()
+            .toISO();
+          console.log("PUT /api/boxes/:id - Converted local ISO to UTC:", parsedTimestamp);
+        }
       } else {
         // Natural language parse
         const nowInUserTZ = DateTime.now().setZone(userTimeZone);
@@ -602,6 +616,11 @@ app.put('/api/boxes/:id', async (req, res) => {
 /* ===============================================
    Listen on port
 =============================================== */
+// Attach Twilio service
+const setupTwilioService = require('./twilioservice');
+setupTwilioService(pool).routes(app);
+
+// Start the server
 const port = process.env.PORT || 8080;
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
