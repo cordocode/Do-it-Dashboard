@@ -28,6 +28,10 @@ const pool = new Pool({
   ssl: getSSLConfig(),
 });
 
+pool.on('connect', async (client) => {
+  await client.query('SET timezone = "UTC"');
+});
+
 /** Initialize Express. */
 const app = express();
 app.use(cors());
