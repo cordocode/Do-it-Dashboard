@@ -53,70 +53,71 @@ function TimeModal({ timeType, setTimeType, timeValue, setTimeValue, onClose, on
   const [timeText, setTimeText] = useState("");
   const [parsedTime, setParsedTime] = useState(null);
   
-  // Initialize the time text field
-  useEffect(() => {
-    // For already parsed ISO timestamps, convert to human readable
-    if (timeValue && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(timeValue)) {
-      try {
-        const date = new Date(timeValue);
-        const formatted = date.toLocaleString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true
-        });
-        setTimeText(formatted);
-        setParsedTime(timeValue); // Keep the ISO version for submission
-      } catch (e) {
-        setTimeText(timeValue);
-      }
-    } else {
-      // For natural language input or empty input
-      setTimeText(timeValue || "");
-    }
-  }, [timeValue]);
+// In TimeModal component
+useEffect(() => {
+  if (timeType === "none" || !timeText) {
+    setParsedTime(null);
+    return;
+  }
   
-  // Parse time when text changes
-  useEffect(() => {
-    if (timeType === "none" || !timeText) {
-      setParsedTime(null);
-      return;
-    }
+  // Don't reprocess if it's already an ISO timestamp (for editing)
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(timeText)) {
+    return;
+  }
+  
+  // Wait a brief moment after typing stops
+  const timer = setTimeout(() => {
+    // Added logging
+    console.log("TimeModal - About to parse time:", {
+      timeText,
+      timeType,
+      userTimeZone,
+      currentDate: new Date().toString(),
+      currentISOString: new Date().toISOString()
+    });
     
-    // Don't reprocess if it's already an ISO timestamp (for editing)
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(timeText)) {
-      return;
-    }
-    
-    // Wait a brief moment after typing stops
-    const timer = setTimeout(() => {
-      fetch(`${API_BASE_URL}/api/parse-time`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          timeString: timeText,
-          timeZone: userTimeZone
-        })
+    fetch(`${API_BASE_URL}/api/parse-time`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        timeString: timeText,
+        timeZone: userTimeZone
       })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setParsedTime(data.parsed);
-        } else {
-          setParsedTime(null);
-        }
-      })
-      .catch(err => {
-        console.error("Error parsing time:", err);
+    })
+    .then(res => res.json())
+    .then(data => {
+      // Added logging
+      console.log("TimeModal - Server parse response:", {
+        success: data.success,
+        input: data.input,
+        parsed: data.parsed,
+        display: data.display,
+        nowUTC: new Date().toISOString()
       });
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  }, [timeText, timeType, userTimeZone]);
+      
+      if (data.success) {
+        setParsedTime(data.parsed);
+      } else {
+        setParsedTime(null);
+      }
+    })
+    .catch(err => {
+      console.error("Error parsing time:", err);
+    });
+  }, 500);
+  
+  return () => clearTimeout(timer);
+}, [timeText, timeType, userTimeZone]);
   
   // Handle text input change
   const handleTimeTextChange = (e) => {
+    console.log("TimeModal - User input changed:", {
+      rawInput: e.target.value,
+      previousValue: timeText,
+      timeType,
+      detectedBrowserTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      userTimeZone
+    });
     setTimeText(e.target.value);
   };
   
@@ -285,17 +286,19 @@ export function Box({
       : `${API_BASE_URL}/api/boxes`;
     const method = id ? "PUT" : "POST";
     const userId = user?.sub || user?.email;
-
-    console.log("Box - Save initiated:", {
+  
+    // Added logging
+    console.log("Box - About to save:", {
       boxId: id,
-      method,
+      method: id ? "PUT" : "POST",
       endpoint: url,
       contentLength: text.length,
       timeType,
-      rawTimeValue: timeValue,
-      userTimeZone
+      timeValue,
+      userTimeZone,
+      currentBrowserTime: new Date().toString()
     });
-
+  
     fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
