@@ -2,6 +2,15 @@
  * server.js — Full, combined code
  ***********************************/
 
+// Suppress punycode deprecation warning
+process.emitWarning = (function () {
+  const originalEmitWarning = process.emitWarning;
+  return function (warning, type, code, ...args) {
+    if (code === 'DEP0040') return;
+    return originalEmitWarning.call(process, warning, type, code, ...args);
+  };
+})();
+
 // Force UTC timezone for all date operations in Node
 process.env.TZ = 'UTC';
 
@@ -619,6 +628,10 @@ app.put('/api/boxes/:id', async (req, res) => {
 // Attach Twilio service
 const setupTwilioService = require('./twilioservice');
 setupTwilioService(pool).routes(app);
+
+// Display server timezone information
+console.log(`Server timezone: ${process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone}`);
+console.log(`Current server time: ${new Date().toISOString()}`);
 
 // Start the server
 const port = process.env.PORT || 8080;

@@ -1,11 +1,21 @@
 /* ========================================
    🟢 CONFIRMATION POPUP STYLES
    ======================================== */
+/* First, make sure the delete button's parent has position relative */
+.box-controls-row {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: var(--spacing-3);
+}
+
+/* Then fix the confirmation popup positioning */
 .confirmation-popup {
   position: absolute;
-  top: calc(100% + 5px);
-  right: 0;
-  margin-top: var (--spacing-2);
+  top: calc(100% + 5px); /* This positions it below the button */
+  right: 0;              /* Aligns it with the right edge of delete button */
+  margin-top: var(--spacing-2); /* Remove the space after var */
   padding: var(--spacing-2);
   background: var(--surface-color);
   border: 1px solid var(--border-color);
@@ -15,8 +25,17 @@
   align-items: center;
   gap: var(--spacing-2);
   box-shadow: var(--shadow-md);
-  z-index: 100;
+  z-index: 1000;         /* Increased z-index to appear above other content */
+  transform-origin: top right; /* Makes animation look better */
   animation: popIn var(--transition-fast);
+}
+
+.delete-button {
+  position: relative;
+  background-color: transparent;
+  color: var(--text-secondary);
+  margin-left: auto;
+  border: 1px solid var(--border-color);
 }
 
 @keyframes popIn {

@@ -3,8 +3,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
-import { useNavigate } from "react-router-dom";
-import { DateTime } from "luxon";
 import "./css/the_box.css";
 import "./css/time.css";
 
@@ -71,28 +69,6 @@ function TimeModal({
   const [timeText, setTimeText] = useState("");
   const [parsedResult, setParsedResult] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-
-  // Setup display for existing timestamp
-  useEffect(() => {
-    // If we receive a UTC timestamp, show its local time equivalent as placeholder
-    if (timeValue && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(timeValue)) {
-      try {
-        const localTime = new Date(timeValue).toLocaleString("en-US", {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-          timeZone: userTimeZone
-        });
-        // Don't set timeText - keep input empty with placeholder
-        // This prevents double-conversion on save
-      } catch (err) {
-        console.error("Error formatting existing time:", err);
-      }
-    }
-  }, [timeValue, userTimeZone]);
 
   // Parse natural language input
   useEffect(() => {
@@ -230,21 +206,6 @@ function TimeModal({
               placeholder={getPlaceholder()}
             />
             
-            {/* Preview of parsed time */}
-            {parsedResult && parsedResult.parsed && (
-              <div className="time-preview">
-                Will be set to: {new Date(parsedResult.parsed).toLocaleString("en-US", {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true,
-                  timeZone: userTimeZone
-                })}
-              </div>
-            )}
-            
             {isProcessing && (
               <div className="time-processing">Processing...</div>
             )}
@@ -281,10 +242,6 @@ function StatusIndicator({ status }) {
 
   return <div className={`status-indicator ${statusClass}`} />;
 }
-
-/* ========================================
-   🟢 BOX COMPONENT
-======================================== */
 
 /* ========================================
    🟢 BOX COMPONENT

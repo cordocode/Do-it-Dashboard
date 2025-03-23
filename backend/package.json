@@ -20,6 +20,10 @@
     "node-cron": "^3.0.3",
     "openai": "^4.87.3",
     "pg": "^8.13.3",
+    "punycode": "^2.3.1",
     "twilio": "^5.5.0"
+  },
+  "overrides": {
+    "punycode": "^2.3.1"
   }
 }
