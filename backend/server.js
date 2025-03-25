@@ -1,38 +1,31 @@
-/***********************************
- * server.js — Full, combined code
- ***********************************/
-
-// Suppress punycode deprecation warning
-process.emitWarning = (function () {
-  const originalEmitWarning = process.emitWarning;
-  return function (warning, type, code, ...args) {
-    if (code === 'DEP0040') return;
-    return originalEmitWarning.call(process, warning, type, code, ...args);
-  };
-})();
-
-// Force UTC timezone for all date operations in Node
-process.env.TZ = 'UTC';
-
-require('dotenv').config();
+// 1. IMPORT DEPENDENCIES
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const chrono = require('chrono-node');
 const { DateTime } = require('luxon');
+const setupTwilioService = require('./twilioservice');
+const { 
+  suppressPunycodeWarning, 
+  getSSLConfig, 
+  setGlobalUTCTimezone, 
+  setupDatabaseTimezone,
+  setupHealthCheck 
+} = require('./setup');
 
-// Decide whether to use SSL in production.
-function getSSLConfig() {
-  if (process.env.NODE_ENV === 'development') {
-    // local dev typically doesn't use SSL
-    return false;
-  } else {
-    // on AWS, often need to allow self-signed
-    return { rejectUnauthorized: false };
-  }
-}
+// 2. EXPRESS APP SETUP
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
-// Create your Postgres connection pool.
+// 3. INITIAL CONFIGURATION
+suppressPunycodeWarning();
+setGlobalUTCTimezone();
+require('dotenv').config();
+setupHealthCheck(app);
+
+// 4. DATABASE SETUP
 const pool = new Pool({
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
@@ -41,23 +34,9 @@ const pool = new Pool({
   port: process.env.DB_PORT,
   ssl: getSSLConfig(),
 });
-
-// Ensure each new DB connection uses UTC
-pool.on('connect', async (client) => {
-  await client.query('SET timezone = "UTC"');
-});
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-
-/* ===============================================
-   Root route for Elastic Beanstalk health checks
-=============================================== */
-app.get('/', (req, res) => {
-  res.send('Server is running');
-});
+// 5. ATTACH ROUTES
+setupTwilioService(pool).routes(app);
+setupDatabaseTimezone(pool);
 
 /* ===============================================
    1) GET user profile — create user if needed
@@ -170,19 +149,6 @@ app.get('/api/user-by-phone', async (req, res) => {
   } catch (err) {
     console.error('Error in GET /api/user-by-phone:', err);
     res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-/* ===============================================
-   4) DB test route
-=============================================== */
-app.get('/db-test', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT NOW() AS current_time');
-    res.json({ success: true, time: result.rows[0].current_time });
-  } catch (error) {
-    console.error('DB test error:', error);
-    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -625,15 +591,8 @@ app.put('/api/boxes/:id', async (req, res) => {
 /* ===============================================
    Listen on port
 =============================================== */
-// Attach Twilio service
-const setupTwilioService = require('./twilioservice');
-setupTwilioService(pool).routes(app);
 
-// Display server timezone information
-console.log(`Server timezone: ${process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone}`);
-console.log(`Current server time: ${new Date().toISOString()}`);
-
-// Start the server
+// 5. START THE SERVER
 const port = process.env.PORT || 8080;
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);

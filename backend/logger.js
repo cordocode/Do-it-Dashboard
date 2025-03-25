@@ -1,4 +1,8 @@
-// logger.js - Structured logging for debugging task scheduling workflow
+/***********************************
+ * logger.js — Full, combined code
+ ***********************************/
+
+// logger.js - Structured logging for debugging task scheduling workflow called in other documents via the function logStep 
 function logStep(stepDescription, data) {
     console.log(`\n=== ${stepDescription} ===`);
     if (typeof data === 'object') {
