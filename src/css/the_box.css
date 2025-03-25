@@ -10,12 +10,16 @@
   margin-top: var(--spacing-3);
 }
 
+.delete-button-container {
+  position: relative;
+}
+
 /* Then fix the confirmation popup positioning */
 .confirmation-popup {
   position: absolute;
-  top: calc(100% + 5px); /* This positions it below the button */
-  right: 0;              /* Aligns it with the right edge of delete button */
-  margin-top: var(--spacing-2); /* Remove the space after var */
+  top: 100%; /* Below the Delete button */
+  right: 0;
+  margin-top: 5px;
   padding: var(--spacing-2);
   background: var(--surface-color);
   border: 1px solid var(--border-color);
@@ -25,13 +29,13 @@
   align-items: center;
   gap: var(--spacing-2);
   box-shadow: var(--shadow-md);
-  z-index: 1000;         /* Increased z-index to appear above other content */
-  transform-origin: top right; /* Makes animation look better */
+  z-index: 3000; /* Raised to stay above */
+  transform-origin: top right;
   animation: popIn var(--transition-fast);
+  white-space: nowrap;
 }
 
 .delete-button {
-  position: relative;
   background-color: transparent;
   color: var(--text-secondary);
   margin-left: auto;
@@ -48,6 +52,210 @@
   border-radius: var(--border-radius-sm);
   font-size: var(--font-size-sm);
   min-width: 32px;
+}
+
+/* ========================================
+   🟢 DELETE BUTTON STYLES - REBUILT
+   ======================================== */
+.delete-action-container {
+  position: relative;
+  display: inline-block;
+}
+
+.delete-button {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  padding: var(--spacing-2) var(--spacing-4);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.delete-button:hover {
+  background-color: rgba(248, 113, 113, 0.1);
+  color: var(--error-color);
+  border-color: var(--error-color);
+}
+
+.delete-confirmation {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 180px;
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-3);
+  z-index: 100000;
+  opacity: 0;
+  animation: fadeInScale 0.2s forwards;
+}
+
+.delete-confirmation::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 15px;
+  width: 12px;
+  height: 12px;
+  background-color: var(--surface-color);
+  border-top: 1px solid var(--border-color);
+  border-left: 1px solid var(--border-color);
+  transform: rotate(45deg);
+}
+
+.delete-confirmation p {
+  margin: 0 0 var(--spacing-2) 0;
+  text-align: center;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.delete-confirmation-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+}
+
+.confirm-delete-button, 
+.cancel-delete-button {
+  flex: 1;
+  padding: var(--spacing-2);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.confirm-delete-button {
+  background-color: var(--error-color);
+  color: white;
+  border: none;
+}
+
+.confirm-delete-button:hover {
+  background-color: var(--error-dark, #b91c1c);
+}
+
+.cancel-delete-button {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.cancel-delete-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ========================================
+   🟢 PORTAL DELETE CONFIRMATION STYLES
+   ======================================== */
+.delete-confirmation-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10000;
+}
+
+.delete-confirmation-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+}
+
+.delete-confirmation-portal {
+  position: fixed;
+  background-color: var(--surface-color); /* Beige/neutral background */
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-3);
+  pointer-events: auto;
+  z-index: 10001;
+  animation: fadeInScale 0.2s forwards;
+  width: 180px;
+}
+
+.delete-confirmation-portal::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 15px; /* Position arrow from the right to align with delete button */
+  width: 12px;
+  height: 12px;
+  background-color: var(--surface-color); /* Match portal background */
+  border-top: 1px solid var(--border-color);
+  border-left: 1px solid var(--border-color);
+  transform: rotate(45deg);
+}
+
+.delete-confirmation-portal p {
+  margin: 0 0 var(--spacing-2) 0;
+  text-align: center;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-color); /* Use standard text color */
+}
+
+.delete-confirmation-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+}
+
+.confirm-delete-button, 
+.cancel-delete-button {
+  flex: 1;
+  padding: var(--spacing-2);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.confirm-delete-button {
+  background-color: var(--error-color); /* Keep red for destructive action */
+  color: white;
+  border: none;
+}
+
+.confirm-delete-button:hover {
+  background-color: var(--error-dark, #b91c1c);
+}
+
+.cancel-delete-button {
+  background-color: var(--surface-color); /* Beige/neutral background */
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.cancel-delete-button:hover {
+  background-color: var(--background-color); /* Subtle hover effect */
+  border-color: var(--border-color);
 }
 
 /* ========================================

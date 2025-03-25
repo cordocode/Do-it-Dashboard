@@ -244,6 +244,43 @@ function StatusIndicator({ status }) {
 }
 
 /* ========================================
+   🟢 DELETE CONFIRMATION COMPONENT
+======================================== */
+function DeleteConfirmation({ isOpen, position, onConfirm, onCancel }) {
+  if (!isOpen) return null;
+  
+  return createPortal(
+    <div className="delete-confirmation-wrapper">
+      <div 
+        className="delete-confirmation-backdrop" 
+        onClick={onCancel}
+      ></div>
+      <div 
+        className="delete-confirmation-portal" 
+        style={position}
+      >
+        <p>Are you sure?</p>
+        <div className="delete-confirmation-buttons">
+          <button 
+            className="confirm-delete-button" 
+            onClick={onConfirm}
+          >
+            Confirm
+          </button>
+          <button 
+            className="cancel-delete-button" 
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ========================================
    🟢 BOX COMPONENT
 ======================================== */
 export function Box({
@@ -263,6 +300,8 @@ export function Box({
   const [timeValue, setTimeValue] = useState(initialTimeValue);
   const [showTimeSelector, setShowTimeSelector] = useState(false);
   const textareaRef = useRef(null);
+  const deleteButtonRef = useRef(null);
+  const [deletePosition, setDeletePosition] = useState({ top: 0, right: 0 });
 
   // Update state when props change
   useEffect(() => {
@@ -399,6 +438,26 @@ export function Box({
     }
   };
 
+  // Calculate position for delete confirmation
+  const updateDeletePosition = () => {
+    if (deleteButtonRef.current) {
+      const rect = deleteButtonRef.current.getBoundingClientRect();
+      setDeletePosition({
+        top: `${rect.bottom + 8}px`,
+        right: `${window.innerWidth - rect.right}px`, // Align to right edge of button
+        width: `180px` // Fixed width for consistency
+      });
+    }
+  };
+
+  // When confirmation is toggled, update position
+  const toggleConfirmation = () => {
+    if (!showConfirmation) {
+      updateDeletePosition();
+    }
+    setShowConfirmation(!showConfirmation);
+  };
+
   return (
     <div className="box-container">
       <div className="textarea-container">
@@ -456,20 +515,25 @@ export function Box({
           </button>
         </div>
 
-        {/* Delete button */}
-        <button
-          className="delete-button"
-          onClick={() => setShowConfirmation(true)}
-        >
-          Delete
-        </button>
-
-        {showConfirmation && (
-          <ConfirmationPopup
+        {/* Updated delete button */}
+        <div className="delete-action-container">
+          <button
+            ref={deleteButtonRef}
+            className="delete-button"
+            onClick={toggleConfirmation}
+            aria-expanded={showConfirmation}
+            aria-haspopup="true"
+          >
+            Delete
+          </button>
+          
+          <DeleteConfirmation 
+            isOpen={showConfirmation}
+            position={deletePosition}
             onConfirm={handleDelete}
             onCancel={() => setShowConfirmation(false)}
           />
-        )}
+        </div>
 
         {showTimeSelector && (
           <TimeModal
@@ -546,6 +610,7 @@ export function ProfileButton({ onLogout, onProfileClick }) {
           <circle cx="12" cy="7" r="4" />
         </svg>
       </button>
+  
       {isOpen && (
         <div className="profile-dropdown">
           <button className="profile-menu-item" onClick={goToProfile}>
@@ -557,5 +622,5 @@ export function ProfileButton({ onLogout, onProfileClick }) {
         </div>
       )}
     </div>
-  );
+  ); 
 }
