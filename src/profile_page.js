@@ -228,7 +228,7 @@ function ProfilePage({ user, setUser }) {
       setFirstName(user.given_name || user.name?.split(' ')[0] || '');
       
       // 4) Fetch the user's profile from your backend
-      fetch(`${API_BASE_URL}/api/user-profile?userId=${user.sub}&email=${user.email}`)
+      fetch(`${API_BASE_URL}/api/user-profile?userId=${user.sub}`)
         .then((res) => res.json())
         .then(data => {
           if (data.success) {
@@ -321,12 +321,6 @@ function ProfilePage({ user, setUser }) {
                 />
               </div>
               
-              {/* Email (read-only) */}
-              <div className="profile-field">
-                <label>Email:</label>
-                <span>{user?.email}</span>
-              </div>
-
               <button 
                 className={`save-name-button ${isSaving ? 'saving' : ''} ${saveSuccess ? 'saved' : ''}`}
                 onClick={saveName}

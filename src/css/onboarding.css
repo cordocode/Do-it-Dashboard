@@ -1,0 +1,196 @@
+/* onboarding.css - Scoped to prevent interference with dashboard */
+
+/* Main container */
+.onboarding-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  padding: 20px;
+}
+
+/* Card styling */
+.onboarding-container .onboarding-card {
+  background-color: var(--bg-card);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  padding: 32px;
+  width: 100%;
+  max-width: 480px;
+  transition: all 0.3s ease;
+}
+
+/* Step indicators */
+.onboarding-container .step-indicator {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 32px;
+  gap: 12px;
+}
+
+.onboarding-container .step-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #CCCCCC; /* Fallback if variable isn't defined */
+  background-color: var(--color-inactive, #CCCCCC);
+  transition: all 0.3s ease;
+}
+
+.onboarding-container .step-dot.active {
+  background-color: #4A90E2; /* Fallback if variable isn't defined */
+  background-color: var(--accent-primary, #4A90E2);
+  transform: scale(1.2);
+}
+
+.onboarding-container .step-dot.completed {
+  background-color: #2ECC71; /* Fallback if variable isn't defined */
+  background-color: var(--color-success, #2ECC71);
+}
+
+/* Step content */
+.onboarding-container .onboarding-step {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: onboardingFadeIn 0.4s ease-out;
+}
+
+.onboarding-container .onboarding-step h2 {
+  font-size: 24px;
+  margin: 0;
+  color: #333333; /* Fallback if variable isn't defined */
+  color: var(--text-primary, #333333);
+}
+
+.onboarding-container .onboarding-step p {
+  margin: 0;
+  color: #666666; /* Fallback if variable isn't defined */
+  color: var(--text-secondary, #666666);
+  font-size: 16px;
+}
+
+/* Form fields specific to onboarding */
+.onboarding-container .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onboarding-container .form-field input {
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid #DDDDDD; /* Fallback if variable isn't defined */
+  border: 1px solid var(--border-color, #DDDDDD);
+  font-size: 16px;
+  transition: all 0.2s ease;
+}
+
+.onboarding-container .form-field input:focus {
+  border-color: #4A90E2; /* Fallback if variable isn't defined */
+  border-color: var(--accent-primary, #4A90E2);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2); /* Fallback */
+  box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb, 74, 144, 226), 0.2);
+}
+
+.onboarding-container .form-field input.error {
+  border-color: #E53935; /* Fallback if variable isn't defined */
+  border-color: var(--color-error, #E53935);
+}
+
+/* Errors */
+.onboarding-container .error-message {
+  color: #E53935; /* Fallback if variable isn't defined */
+  color: var(--color-error, #E53935);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* Buttons specific to onboarding */
+.onboarding-container .primary-button {
+  background-color: #4A90E2; /* Fallback if variable isn't defined */
+  background-color: var(--accent-primary, #4A90E2);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.onboarding-container .primary-button:hover {
+  background-color: #3A80D2; /* Fallback if variable isn't defined */
+  background-color: var(--accent-primary-dark, #3A80D2);
+}
+
+.onboarding-container .primary-button:disabled {
+  background-color: #CCCCCC; /* Fallback if variable isn't defined */
+  background-color: var(--color-disabled, #CCCCCC);
+  cursor: not-allowed;
+}
+
+.onboarding-container .text-button {
+  background: none;
+  border: none;
+  color: #4A90E2; /* Fallback if variable isn't defined */
+  color: var(--accent-primary, #4A90E2);
+  font-size: 14px;
+  padding: 8px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.onboarding-container .text-button:hover {
+  color: #3A80D2; /* Fallback if variable isn't defined */
+  color: var(--accent-primary-dark, #3A80D2);
+}
+
+.onboarding-container .text-button:disabled {
+  color: #CCCCCC; /* Fallback if variable isn't defined */
+  color: var(--color-disabled, #CCCCCC);
+  cursor: not-allowed;
+}
+
+/* Button grouping for onboarding */
+.onboarding-container .button-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Verification specific styles */
+.onboarding-container .verification-instructions {
+  background-color: #F5F7FA; /* Fallback if variable isn't defined */
+  background-color: var(--bg-highlight, #F5F7FA);
+  padding: 12px;
+  border-radius: 8px;
+  margin: 0;
+}
+
+.onboarding-container .phone-input,
+.onboarding-container .verification-code-input {
+  font-family: monospace;
+  letter-spacing: 0.5px;
+}
+
+.onboarding-container .verification-code-input {
+  font-size: 20px;
+  text-align: center;
+  letter-spacing: 4px;
+}
+
+/* Animation with unique name to avoid conflicts */
+@keyframes onboardingFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

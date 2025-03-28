@@ -1,5 +1,5 @@
 /***********************************
- * setup.js — Full, combined code
+ * setup.js
  ***********************************/
 // setup.js help with edge case architechtural implementations
 

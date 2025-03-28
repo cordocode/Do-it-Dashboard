@@ -1,3 +1,7 @@
+/***********************************
+ * server.js
+ ***********************************/
+
 // 1. IMPORT DEPENDENCIES
 const express = require('express');
 const cors = require('cors');
@@ -10,22 +14,24 @@ const {
   getSSLConfig, 
   setGlobalUTCTimezone, 
   setupDatabaseTimezone,
-  setupHealthCheck 
+  healthCheck, 
 } = require('./setup');
 
-// 2. EXPRESS APP SETUP
+// 2. INITIAL CONFIGURATION
+suppressPunycodeWarning();
+setGlobalUTCTimezone();
+require('dotenv').config();
+
+// 3. EXPRESS APP SETUP
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// 3. INITIAL CONFIGURATION
-suppressPunycodeWarning();
-setGlobalUTCTimezone();
-require('dotenv').config();
-setupHealthCheck(app);
+// 4. EXPRESS APP SETUP
+healthCheck(app);
 
-// 4. DATABASE SETUP
+// 5. DATABASE SETUP
 const pool = new Pool({
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
@@ -34,9 +40,123 @@ const pool = new Pool({
   port: process.env.DB_PORT,
   ssl: getSSLConfig(),
 });
+
 // 5. ATTACH ROUTES
 setupTwilioService(pool).routes(app);
 setupDatabaseTimezone(pool);
+
+/* ===============================================
+   Complete Onboarding Endpoint
+=============================================== */
+app.post('/api/complete-onboarding', async (req, res) => {
+  try {
+    const { 
+      userId, 
+      firstName, 
+      phoneNumber, 
+      phoneVerified, 
+      birthday,
+      onboardingCompleted
+    } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'User ID is required' 
+      });
+    }
+
+    // Format birthday as ISO date if provided
+    const formattedBirthday = birthday ? new Date(birthday).toISOString() : null;
+
+    // Update user information including onboarding status
+    const result = await pool.query(
+      `UPDATE users 
+       SET first_name = $1, 
+           phone_number = $2, 
+           phone_verified = $3, 
+           birthday = $4,
+           onboarding_completed = $5
+       WHERE user_id = $6
+       RETURNING *`,
+      [
+        firstName || null, 
+        phoneNumber || null, 
+        phoneVerified || false, 
+        formattedBirthday, 
+        onboardingCompleted || true,
+        userId
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'User not found' 
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      user: result.rows[0] 
+    });
+  } catch (err) {
+    console.error('Error completing onboarding:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: err.message 
+    });
+  }
+});
+
+// Modify the GET user-profile endpoint to include onboarding status
+// Find this endpoint in your server.js and update it:
+
+/* ===============================================
+   Modified GET user profile endpoint
+=============================================== */
+app.get('/api/user-profile', async (req, res) => {
+  try {
+    // We now read both userId and email from query params
+    const { userId, email } = req.query;
+
+    // Check if user already exists
+    let userResult = await pool.query(
+      'SELECT * FROM users WHERE user_id = $1',
+      [userId]
+    );
+
+    // If not found => create a new row with user_id and email
+    if (userResult.rows.length === 0) {
+      await pool.query(
+        'INSERT INTO users (user_id, email, onboarding_completed) VALUES ($1, $2, $3)',
+        [userId, email, false]  // Default onboarding status to false for new users
+      );
+      // Re-fetch the newly created user
+      userResult = await pool.query(
+        'SELECT * FROM users WHERE user_id = $1',
+        [userId]
+      );
+    }
+
+    const profile = userResult.rows[0];
+    res.json({
+      success: true,
+      profile: {
+        first_name: profile.first_name,
+        email: profile.email,
+        phone_number: profile.phone_number,
+        phone_verified: profile.phone_verified,
+        time_zone: profile.time_zone,
+        birthday: profile.birthday,
+        onboarding_completed: profile.onboarding_completed || false
+      }
+    });
+  } catch (err) {
+    console.error('Error in GET /api/user-profile:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 /* ===============================================
    1) GET user profile — create user if needed
